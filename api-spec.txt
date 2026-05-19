@@ -1,0 +1,788 @@
+Corporate Event Ticketing System — API Specification
+Group 14 ｜ 114-2 雲端原生軟體開發與最佳實踐
+
+
+==============================
+共用規範
+==============================
+
+【 Base URL 】
+https://api.your-domain.com/v1
+
+【 角色定義 】
+welfare_member  福委會
+employee        一般員工
+hr              HR
+
+【 Request Headers 】
+所有 API 都要帶
+
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+
+【 統一 Response 格式 】
+
+成功：
+{
+  "data": { ... }
+}
+
+分頁列表：
+{
+  "data": [ ... ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 100
+  }
+}
+
+錯誤：
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human readable message"
+  }
+}
+
+【 HTTP Status Code 】
+200  成功
+201  建立成功
+207  批量操作部分成功
+400  格式錯誤 / 參數不合法
+401  未登入
+403  權限不足
+404  資源不存在
+409  業務邏輯衝突（超賣、重複報名...）
+500  系統錯誤
+
+
+
+
+==============================
+Auth（第三方登入）
+==============================
+
+
+【 登入流程 】
+
+1. 前端顯示「使用 Google 帳號登入」按鈕
+2. 使用者點擊後，導向 Google 登入頁面
+3. 使用者完成登入，Google 將使用者導回 callback URL
+4. 前端從 callback URL 取得 jwt_token
+5. 將 jwt_token 存起來，之後每次打 API 都帶在 Header
+
+【 GET /auth/login 】
+取得 Google 登入的導向網址
+Roles: 不需要 token
+
+Response 200
+{
+  "data": {
+    "loginUrl": "https://accounts.google.com/o/oauth2/v2/auth?..."
+  }
+}
+
+
+------------------------------
+
+【 GET /auth/callback 】
+第三方登入完成後的 callback，由前端接收 token
+Roles: 不需要 token
+
+Query Params
+?code=xxxxx（第三方回傳的授權碼，由後端換成 jwt_token）
+
+Response 200
+{
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "role": "employee"
+  }
+}
+
+
+------------------------------
+
+【 POST /auth/logout 】
+登出，讓 token 失效
+Roles: all roles
+
+Response 200
+{
+  "data": { "loggedOut": true }
+}
+
+------------------------------
+
+【 GET /me 】
+取得當前登入使用者資訊
+Roles: all roles
+
+Response 200
+{
+  "data": {
+    "userId": "u_abc123",
+    "username": "john.doe",
+    "role": "employee",
+    "preferences": ["outdoor", "food"],
+    "registrationStatus": "active",
+    "unlockAt": null,
+    "autofill": {
+      "dietType": "non-veg",
+      "selfDriving": true
+    }
+  }
+}
+
+registrationStatus 可選值
+active   可以報名
+locked   被鎖定，無法報名（unlockAt 為解鎖時間）
+
+
+
+==============================
+Account Service
+==============================
+
+【 GET /users 】
+列出所有使用者
+Roles: welfare_member
+
+Query Params
+?page=1&limit=20&role=employee&status=locked
+status 可選值：active | locked
+
+Response 200
+{
+  "data": [
+    {
+      "userId": "u_abc123",
+      "username": "john.doe",
+      "role": "employee",
+      "registrationStatus": "active",
+      "unlockAt": null
+    }
+  ],
+  "pagination": { "page": 1, "limit": 20, "total": 200 }
+}
+
+------------------------------
+
+【 POST /users 】
+新增使用者
+Roles: welfare_member
+
+Request Body
+{
+  "username": "jane.smith",
+  "role": "employee"
+}
+
+Response 201
+{
+  "data": {
+    "userId": "u_xyz789",
+    "username": "jane.smith",
+    "role": "employee"
+  }
+}
+
+------------------------------
+
+【 GET /users/{userId} 】
+取得特定使用者資料
+Roles: self、welfare_member
+
+Response 200
+{
+  "data": {
+    "userId": "u_abc123",
+    "username": "john.doe",
+    "role": "employee",
+    "preferences": ["outdoor", "food"],
+    "registrationStatus": "active",
+    "unlockAt": null,
+    "autofill": {
+      "dietType": "non-veg",
+      "selfDriving": true
+    }
+  }
+}
+
+------------------------------
+
+【 PATCH /users/{userId} 】
+更新使用者個人資料
+Roles: self、welfare_member
+
+Request Body
+{
+  "preferences": ["music", "sports"],
+  "autofill": {
+    "dietType": "veg",
+    "selfDriving": false
+  }
+}
+
+Response 200
+{
+  "data": {
+    "updated": true,
+    "updatedAt": "2025-05-18T10:30:00Z"
+  }
+}
+
+------------------------------
+
+【 PATCH /users/{userId}/role 】
+變更使用者角色
+Roles: welfare_member
+可選值：welfare_member | employee | hr
+
+Request Body
+{
+  "role": "hr"
+}
+
+Response 200
+{
+  "data": { "updated": true, "updatedAt": "2025-05-18T10:30:00Z" }
+}
+
+------------------------------
+
+【 DELETE /users/{userId} 】
+刪除使用者
+Roles: welfare_member
+
+Response 200
+{
+  "data": { "deleted": true }
+}
+
+------------------------------
+
+【 PATCH /users/{userId}/unlock 】
+手動解鎖被停權的使用者
+Roles: welfare_member
+
+Response 200
+{
+  "data": { "unlocked": true, "updatedAt": "2025-05-18T10:30:00Z" }
+}
+
+Response 409
+{
+  "error": { "code": "USER_NOT_LOCKED", "message": "User is not locked" }
+}
+
+
+==============================
+Event Service
+==============================
+
+【 GET /events 】
+查詢活動列表（不含已結束活動）
+Roles: all roles
+
+Query Params
+?page=1&limit=20
+&keyword=烤肉
+&category=outdoor
+&startDate=2025-06-01
+&endDate=2025-07-01
+&status=registering
+
+status 可選值
+not_open     報名未開放
+registering  報名中
+waitlist     候補登記
+closed       報名截止
+ended        活動結束
+
+Response 200
+{
+  "data": [
+    {
+      "eventId": "ev_001",
+      "name": "夏日烤肉趴",
+      "description": "部門聯誼活動",
+      "category": "outdoor",
+      "location": "台北辦公室頂樓",
+      "eventStartTime": "2025-07-15T18:00:00Z",
+      "eventEndTime": "2025-07-15T22:00:00Z",
+      "registrationStart": "2025-06-01T00:00:00Z",
+      "registrationEnd": "2025-07-01T23:59:59Z",
+      "status": "registering",
+      "ticketLimit": 50,
+      "remainingTickets": 12,
+      "cancellationDeadline": "2025-07-10T00:00:00Z",
+      "guestAllowed": false,
+      "updatedAt": "2025-05-18T10:00:00Z"
+    }
+  ],
+  "pagination": { "page": 1, "limit": 20, "total": 45 }
+}
+
+------------------------------
+
+【 GET /events/{eventId} 】
+取得單一活動詳情
+Roles: all roles
+
+Response 200
+{
+  "data": {
+    "eventId": "ev_001",
+    "name": "夏日烤肉趴",
+    "description": "部門聯誼活動",
+    "category": "outdoor",
+    "location": "台北辦公室頂樓",
+    "latitude": 25.0478,
+    "longitude": 121.5319,
+    "checkinRadiusMeters": 200,
+    "eventStartTime": "2025-07-15T18:00:00Z",
+    "eventEndTime": "2025-07-15T22:00:00Z",
+    "registrationStart": "2025-06-01T00:00:00Z",
+    "registrationEnd": "2025-07-01T23:59:59Z",
+    "status": "registering",
+    "ticketLimit": 50,
+    "remainingTickets": 12,
+    "cancellationDeadline": "2025-07-10T00:00:00Z",
+    "guestAllowed": false,
+    "faqs": [
+      { "question": "需要自備餐具嗎？", "answer": "不需要，主辦方提供" }
+    ],
+    "isDraft": false,
+    "createdAt": "2025-05-01T08:00:00Z",
+    "updatedAt": "2025-05-18T10:00:00Z"
+  }
+}
+
+------------------------------
+
+【 POST /events 】
+新增活動
+Roles: welfare_member
+
+Request Body
+{
+  "name": "夏日烤肉趴",
+  "description": "部門聯誼活動",
+  "category": "outdoor",
+  "location": "台北辦公室頂樓",
+  "latitude": 25.0478,
+  "longitude": 121.5319,
+  "checkinRadiusMeters": 200,
+  "eventStartTime": "2025-07-15T18:00:00Z",
+  "eventEndTime": "2025-07-15T22:00:00Z",
+  "registrationStart": "2025-06-01T00:00:00Z",
+  "registrationEnd": "2025-07-01T23:59:59Z",
+  "ticketLimit": 50,
+  "cancellationDeadline": "2025-07-10T00:00:00Z",
+  "isDraft": true,
+  "faqs": [
+    { "question": "需要自備餐具嗎？", "answer": "不需要，主辦方提供" }
+  ]
+}
+
+Response 201
+{
+  "data": {
+    "eventId": "ev_001",
+    "isDraft": true,
+    "createdAt": "2025-05-18T10:00:00Z"
+  }
+}
+
+------------------------------
+
+【 PATCH /events/{eventId} 】
+更新活動資訊
+Roles: welfare_member
+
+Request Body
+{
+  "description": "更新後的描述",
+  "ticketLimit": 60,
+  "isDraft": false
+}
+
+Response 200
+{
+  "data": { "updated": true, "updatedAt": "2025-05-18T11:00:00Z" }
+}
+
+------------------------------
+
+【 PATCH /events 】
+批量更新活動
+Roles: welfare_member
+
+Request Body
+{
+  "updates": [
+    { "eventId": "ev_001", "ticketLimit": 60 },
+    { "eventId": "ev_002", "cancellationDeadline": null }
+  ]
+}
+
+Response 207
+{
+  "data": {
+    "succeeded": ["ev_001"],
+    "failed": [
+      { "eventId": "ev_002", "error": "EVENT_ALREADY_STARTED" }
+    ]
+  }
+}
+
+------------------------------
+
+【 DELETE /events/{eventId} 】
+刪除活動（僅限尚未發布或尚未開始報名的活動）
+Roles: welfare_member
+
+Response 200
+{
+  "data": { "deleted": true }
+}
+
+Response 409
+{
+  "error": { "code": "EVENT_NOT_DELETABLE", "message": "Event already published or registration started" }
+}
+
+
+==============================
+Transaction Service（報名管理）
+==============================
+
+【 GET /events/{eventId}/eligibility 】
+檢查當前使用者報名資格
+Roles: employee
+
+Response 200（符合資格）
+{
+  "data": {
+    "eligible": true,
+    "reason": null,
+    "remainingTickets": 12,
+    "isWaitlist": false
+  }
+}
+
+Response 200（不符合資格）
+{
+  "data": {
+    "eligible": false,
+    "reason": "LOCKED",
+    "remainingTickets": 12,
+    "isWaitlist": false,
+    "unlockAt": "2025-06-18T00:00:00Z"
+  }
+}
+
+reason 可選值
+LOCKED              帳號被鎖定，unlockAt 為解鎖時間
+NO_TICKETS          無剩餘名額（可候補）
+ALREADY_REGISTERED  已報名
+
+------------------------------
+
+【 GET /transactions 】
+查詢自己的報名紀錄
+Roles: employee
+
+Query Params
+?page=1&limit=10&status=confirmed
+status 可選值：confirmed | waitlist | cancelled
+
+Response 200
+{
+  "data": [
+    {
+      "transactionId": "tx_001",
+      "eventId": "ev_001",
+      "eventName": "夏日烤肉趴",
+      "eventStartTime": "2025-07-15T18:00:00Z",
+      "status": "confirmed",
+      "waitlistNumber": null,
+      "guestCount": 2,
+      "dietType": "non-veg",
+      "selfDriving": true,
+      "registeredAt": "2025-05-18T09:00:00Z",
+      "ticketId": "tk_001"
+    }
+  ],
+  "pagination": { "page": 1, "limit": 10, "total": 5 }
+}
+
+------------------------------
+
+【 POST /transactions 】
+提交報名
+Roles: employee
+
+規則：ticketLimit 有設定（限名額）→ 只限員工本人，guestCount 固定為 0
+      ticketLimit 為 null（不限名額）→ 可填家屬人數，guestCount >= 0
+
+Request Body
+{
+  "eventId": "ev_001",
+  "guestCount": 2,
+  "dietType": "non-veg",
+  "selfDriving": true,
+  "saveAutofill": true
+}
+
+dietType 可選值：veg | non-veg | none
+
+Response 201（報名成功）
+{
+  "data": {
+    "transactionId": "tx_001",
+    "status": "confirmed",
+    "ticketId": "tk_001",
+    "registeredAt": "2025-05-18T09:00:00Z"
+  }
+}
+
+Response 201（候補）
+{
+  "data": {
+    "transactionId": "tx_002",
+    "status": "waitlist",
+    "waitlistNumber": 3,
+    "ticketId": null,
+    "registeredAt": "2025-05-18T09:00:00Z"
+  }
+}
+
+Response 409（帳號鎖定）
+{
+  "error": {
+    "code": "ACCOUNT_LOCKED",
+    "message": "Account is locked",
+    "unlockAt": "2025-06-18T00:00:00Z"
+  }
+}
+
+Response 409（其他）
+{
+  "error": { "code": "ALREADY_REGISTERED", "message": "Already registered for this event" }
+}
+
+------------------------------
+
+【 PATCH /transactions/{transactionId} 】
+修改報名細節（不影響報名順序與資格）
+Roles: employee
+可修改欄位：dietType、selfDriving、guestCount（僅限不限名額的活動）
+
+Request Body
+{
+  "guestCount": 3,
+  "dietType": "veg",
+  "selfDriving": false
+}
+
+Response 200
+{
+  "data": { "updated": true, "updatedAt": "2025-05-18T10:30:00Z" }
+}
+
+Response 409
+{
+  "error": { "code": "PAST_CANCELLATION_DEADLINE", "message": "Modification deadline has passed" }
+}
+
+------------------------------
+
+【 DELETE /transactions/{transactionId} 】
+取消報名
+Roles: employee
+
+Response 200
+{
+  "data": { "cancelled": true }
+}
+
+Response 409
+{
+  "error": { "code": "PAST_CANCELLATION_DEADLINE", "message": "Cancellation deadline has passed" }
+}
+
+------------------------------
+
+【 GET /events/{eventId}/registrations 】
+查看活動報名詳情（後台用）
+Roles: welfare_member、hr
+
+Query Params
+?page=1&limit=20&status=confirmed
+
+Response 200
+{
+  "data": {
+    "summary": {
+      "totalConfirmed": 38,
+      "totalWaitlist": 5,
+      "totalCancelled": 4
+    },
+    "registrations": [
+      {
+        "transactionId": "tx_001",
+        "userId": "u_abc123",
+        "username": "john.doe",
+        "status": "confirmed",
+        "guestCount": 2,
+        "dietType": "non-veg",
+        "selfDriving": true,
+        "registeredAt": "2025-05-18T09:00:00Z"
+      }
+    ]
+  },
+  "pagination": { "page": 1, "limit": 20, "total": 38 }
+}
+
+
+==============================
+Ticket Service（票券管理）
+==============================
+
+【 GET /tickets 】
+取得自己的票券列表
+Roles: employee
+
+Query Params
+?status=unused
+status 可選值：used | unused | invalid
+
+invalid   非活動期間（報名後尚未到活動時段，或活動已結束）
+used      活動期間且票券已兌換（報到完成）
+unused    活動期間且票券尚未兌換（可報到）
+
+
+Response 200
+{
+  "data": [
+    {
+      "ticketId": "tk_001",
+      "eventId": "ev_001",
+      "eventName": "夏日烤肉趴",
+      "eventStartTime": "2025-07-15T18:00:00Z",
+      "eventLocation": "台北辦公室頂樓",
+      "status": "unused",
+      "checkinAvailable": true
+    }
+  ]
+}
+
+------------------------------
+
+【 GET /tickets/{ticketId} 】
+取得單一票券詳情（含報到所需資訊）
+Roles: employee、welfare_member
+
+Response 200
+{
+  "data": {
+    "ticketId": "tk_001",
+    "userId": "u_abc123",
+    "eventId": "ev_001",
+    "eventName": "夏日烤肉趴",
+    "eventStartTime": "2025-07-15T18:00:00Z",
+    "eventEndTime": "2025-07-15T22:00:00Z",
+    "eventLocation": "台北辦公室頂樓",
+    "latitude": 25.0478,
+    "longitude": 121.5319,
+    "checkinRadiusMeters": 200,
+    "status": "unused",
+    "checkinAvailable": true,
+    "qrPayload": "tk_001:ev_001:u_abc123:sig_xxxxxx"
+  }
+}
+
+------------------------------
+
+【 POST /tickets/{ticketId}/checkin 】
+報到（後端驗證地理位置）
+Roles: employee
+
+Request Body
+{
+  "latitude": 25.0479,
+  "longitude": 121.5320
+}
+
+Response 200
+{
+  "data": { "checkedIn": true, "checkedInAt": "2025-07-15T18:05:00Z" }
+}
+
+Response 400
+{ "error": { "code": "OUT_OF_RANGE", "message": "User is not within event location" } }
+{ "error": { "code": "TICKET_INVALID", "message": "Ticket is used or invalid" } }
+{ "error": { "code": "NOT_EVENT_TIME", "message": "Check-in only available during event time" } }
+
+------------------------------
+
+【 GET /events/{eventId}/tickets 】
+查看某活動所有票券狀態（核銷頁面用）
+Roles: welfare_member
+
+Query Params
+?status=unused&page=1&limit=50
+
+Response 200
+{
+  "data": {
+    "summary": { "used": 20, "unused": 18, "invalid": 12 },
+    "tickets": [
+      {
+        "ticketId": "tk_001",
+        "userId": "u_abc123",
+        "username": "john.doe",
+        "status": "unused"
+      }
+    ]
+  },
+  "pagination": { "page": 1, "limit": 50, "total": 50 }
+}
+
+
+==============================
+Notification
+==============================
+
+【 GET /notifications 】
+取得使用者通知列表
+Roles: all roles
+
+Query Params
+?page=1&limit=20&read=false
+
+Response 200
+{
+  "data": [
+    {
+      "notificationId": "nf_001",
+      "type": "REGISTRATION_SUCCESS",
+      "title": "報名成功",
+      "message": "您已成功報名「夏日烤肉趴」",
+      "eventId": "ev_001",
+      "read": false,
+      "createdAt": "2025-05-18T09:01:00Z"
+    }
+  ],
+  "pagination": { "page": 1, "limit": 20, "total": 10 }
+}
+
+type 可選值
+REGISTRATION_SUCCESS  報名成功
+WAITLIST_PROMOTED     候補升為正取
+EVENT_REMINDER        活動提醒
+ACCOUNT_LOCKED        帳號被鎖定通知
+ACCOUNT_UNLOCKED      帳號解鎖通知
