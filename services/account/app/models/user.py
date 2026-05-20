@@ -8,7 +8,7 @@ from app.core.database import Base
 VALID_ROLES = ("employee", "welfare_member", "hr")
 VALID_REGISTRATION_STATUSES = ("active", "locked")
 VALID_DIET_TYPES = ("veg", "non-veg")
-VALID_TAGS = ("sport", "food", "travel", "culture", "family", "contest")
+VALID_TAGS = ("sport", "food", "travel", "culture", "family", "contest", "music")
 
 
 class User(Base):
@@ -46,7 +46,7 @@ class UserInterestTag(Base):
     __tablename__ = "user_interest_tags"
     __table_args__ = (
         UniqueConstraint("user_id", "tag"),
-        CheckConstraint("tag IN ('sport','food','travel','culture','family','contest')", name="check_tag"),
+        CheckConstraint("tag IN ('sport','food','travel','culture','family','contest','music')", name="check_tag"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -61,7 +61,7 @@ class UserPreference(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "category"),
         CheckConstraint("diet_type IN ('veg','non-veg')", name="check_preference_diet_type"),
-        CheckConstraint("category IN ('sport','food','travel','culture','family','contest')", name="check_preference_category"),
+        CheckConstraint("category IN ('sport','food','travel','culture','family','contest','music')", name="check_preference_category"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

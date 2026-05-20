@@ -67,6 +67,7 @@ Account Service 共有三張表：
 | `culture` | 文藝 / 展覽 |
 | `family` | 親子 / 家庭 |
 | `contest` | 競賽 |
+| `music` | 音樂 |
 
 > tag 可選值與活動的 `category` 一致，供活動推薦使用。
 
