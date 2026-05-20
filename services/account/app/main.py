@@ -1,0 +1,32 @@
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
+
+from app.core.config import settings
+from app.routers.auth import router as auth_router
+
+app = FastAPI(
+    title="NTHU 福委會系統 - 帳戶管理微服務",
+    version="1.0.0"
+)
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    detail = exc.detail
+    if isinstance(detail, dict):
+        return JSONResponse(status_code=exc.status_code, content={"error": detail})
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": {"code": str(exc.status_code), "message": detail}},
+    )
+
+
+@app.get("/")
+def read_root():
+    return {
+        "message": "Account Management Service is running!",
+        "environment": settings.account_db_host
+    }
+
+
+app.include_router(auth_router, prefix="/v1")
