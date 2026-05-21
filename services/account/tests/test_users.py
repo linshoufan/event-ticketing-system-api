@@ -65,3 +65,60 @@ def test_unlock_non_locked_user_returns_409(client, db_session):
     )
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "USER_NOT_LOCKED"
+
+
+def test_welfare_member_can_create_user(client, db_session):
+    welfare = make_user(db_session, role="welfare_member")
+    response = client.post(
+        "/v1/users",
+        json={"username": "new_user", "role": "employee"},
+        headers=auth_headers(welfare),
+    )
+    assert response.status_code == 201
+    assert response.json()["data"]["username"] == "new_user"
+    assert response.json()["data"]["role"] == "employee"
+
+
+def test_employee_can_update_own_profile(client, db_session):
+    employee = make_user(db_session, role="employee")
+    response = client.patch(
+        f"/v1/users/{employee.user_id}",
+        json={"preferences": ["sport", "food"], "autofill": {"dietType": "veg", "selfDriving": True}},
+        headers=auth_headers(employee),
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["updated"] is True
+
+
+def test_welfare_member_can_delete_user(client, db_session):
+    welfare = make_user(db_session, role="welfare_member")
+    target = make_user(db_session, role="employee")
+    response = client.delete(
+        f"/v1/users/{target.user_id}",
+        headers=auth_headers(welfare),
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["deleted"] is True
+
+
+def test_welfare_member_can_change_user_role(client, db_session):
+    welfare = make_user(db_session, role="welfare_member")
+    target = make_user(db_session, role="employee")
+    response = client.patch(
+        f"/v1/users/{target.user_id}/role",
+        json={"role": "hr"},
+        headers=auth_headers(welfare),
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["updated"] is True
+
+
+def test_welfare_member_cannot_change_own_role(client, db_session):
+    welfare = make_user(db_session, role="welfare_member")
+    response = client.patch(
+        f"/v1/users/{welfare.user_id}/role",
+        json={"role": "employee"},
+        headers=auth_headers(welfare),
+    )
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "CANNOT_MODIFY_OWN_ROLE"
