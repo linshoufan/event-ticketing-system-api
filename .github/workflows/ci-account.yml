@@ -1,0 +1,65 @@
+name: CI - Account Service
+
+on:
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - "services/account/**"
+      - "requirements.txt"
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_account_db
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      ENV: local
+      ACCOUNT_DB_HOST: localhost
+      ACCOUNT_DB_PORT: 5433
+      ACCOUNT_DB_USER: test
+      ACCOUNT_DB_PASSWORD: test
+      ACCOUNT_DB_NAME: test_account_db
+      JWT_SECRET_KEY: ci-test-secret-key-do-not-use-in-prod
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRE_MINUTES: 60
+      INTERNAL_API_KEY: ci-test-internal-key
+      GOOGLE_CLIENT_ID: ""
+      GOOGLE_CLIENT_SECRET: ""
+      GOOGLE_REDIRECT_URI: http://localhost:8000/v1/auth/callback
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Lint
+        working-directory: services/account
+        run: ruff check app/ tests/
+
+      - name: Run migrations
+        working-directory: services/account
+        run: alembic upgrade head
+
+      - name: Run tests
+        working-directory: services/account
+        run: pytest tests/ -v --tb=short
