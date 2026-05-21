@@ -1,7 +1,4 @@
 import uuid
-from unittest.mock import patch
-
-import pytest
 
 from app.core.security import create_access_token
 from app.models.user import User

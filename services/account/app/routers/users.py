@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user, role_required, self_or_role
+from app.core.dependencies import role_required, self_or_role
 from app.core.response import paginated, success
 from app.models.user import User
 from app.schemas.user import (
