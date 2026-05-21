@@ -1,4 +1,3 @@
-import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from main import app
@@ -21,7 +20,6 @@ def test_login_returns_login_url():
 
 def test_http_exception_handler_with_dict_detail():
     from app.main import app as fastapi_app
-    from fastapi.routing import APIRoute
 
     @fastapi_app.get("/test-error")
     def trigger_error():

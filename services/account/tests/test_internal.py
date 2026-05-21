@@ -1,8 +1,6 @@
 import uuid
 from datetime import datetime, timezone, timedelta
 
-import pytest
-
 from app.core.config import settings
 from app.models.user import User
 
@@ -83,7 +81,8 @@ def test_punish_already_locked_user_resets_unlock_at(client, db_session):
         headers={INTERNAL_KEY_HEADER: VALID_KEY},
     )
     # 稍等一下，讓時間有差距
-    import time; time.sleep(1)
+    import time
+    time.sleep(1)
     before_second = datetime.now(timezone.utc)
     # punish 第二次，unlockAt 應該被重置
     response = client.post(

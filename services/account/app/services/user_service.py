@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.models.user import User, UserInterestTag, UserPreference
+from app.models.user import User, UserInterestTag
 from app.schemas.user import CreateUserRequest, UpdateUserRequest
 
 
