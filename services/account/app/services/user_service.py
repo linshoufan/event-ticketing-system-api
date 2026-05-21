@@ -108,3 +108,13 @@ def unlock_user(user_id: str, db: Session) -> User:
     db.commit()
     db.refresh(user)
     return user
+
+
+def punish_user(user_id: str, db: Session) -> User:
+    user = get_user_by_id(user_id, db)
+    user.registration_status = "locked"
+    user.unlock_at = datetime.now(timezone.utc) + timedelta(days=30)
+    user.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(user)
+    return user
