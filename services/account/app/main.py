@@ -3,6 +3,8 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.routers.auth import router as auth_router
+from app.routers.me import router as me_router
+from app.routers.users import router as users_router
 
 app = FastAPI(
     title="NTHU 福委會系統 - 帳戶管理微服務",
@@ -30,3 +32,5 @@ def read_root():
 
 
 app.include_router(auth_router, prefix="/v1")
+app.include_router(me_router, prefix="/v1")
+app.include_router(users_router, prefix="/v1")
