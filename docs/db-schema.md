@@ -29,6 +29,7 @@
 erDiagram
   users ||--o{ user_interest_tags : has
   users ||--o{ user_preferences : has
+  users ||--o{ tickets : owns
   events ||--o{ tickets : issues
 
   users {
@@ -76,15 +77,13 @@ erDiagram
   tickets {
     varchar ticket_id PK
     varchar event_id FK
-    varchar user_id
+    varchar user_id FK
     varchar username
     timestamptz checked_in_at
     timestamptz issued_at
     timestamptz updated_at
   }
 ```
-
-> 目前 `tickets.user_id` 儲存票券持有人 ID，但尚未建立 DB-level foreign key 到 `users.user_id`。
 
 ---
 
@@ -200,38 +199,6 @@ Account domain 共有三張表：
 ]
 ```
 
----
-
-### Account 關聯圖
-
-```mermaid
-erDiagram
-  users ||--o{ user_interest_tags : has
-  users ||--o{ user_preferences : has
-
-  users {
-    varchar user_id PK
-    varchar username
-    varchar email
-    varchar role
-    varchar registration_status
-  }
-
-  user_interest_tags {
-    integer id PK
-    varchar user_id FK
-    varchar tag
-  }
-
-  user_preferences {
-    integer id PK
-    varchar user_id FK
-    varchar category
-  }
-```
-
----
-
 ### Autofill 邏輯
 
 使用者報名活動時，系統依序查詢填入預設值：
@@ -275,7 +242,7 @@ Ticket domain 目前有兩張表：
 |---|---|---|---|---|
 | ticket_id | VARCHAR(36) | NO | - | 主鍵 |
 | event_id | VARCHAR(36) | NO | - | 外鍵，對應 `events.event_id` |
-| user_id | VARCHAR(36) | NO | - | 票券持有人 ID |
+| user_id | VARCHAR(36) | NO | - | 外鍵，對應 `users.user_id` |
 | username | VARCHAR(100) | YES | `null` | 票券持有人顯示名稱快照 |
 | checked_in_at | TIMESTAMPTZ | YES | `null` | 報到時間；`null` 代表尚未報到 |
 | issued_at | TIMESTAMPTZ | NO | NOW() | 票券建立時間 |
@@ -284,29 +251,8 @@ Ticket domain 目前有兩張表：
 **限制：**
 
 - 同一個 user 同一場活動只能有一張票（`UNIQUE(event_id, user_id)`）
+- `user_id` 刪除時，對應 ticket 一併刪除
 - `event_id` 刪除時，對應 ticket 一併刪除
-
-### Ticket 關聯圖
-
-```mermaid
-erDiagram
-  events ||--o{ tickets : issues
-
-  events {
-    varchar event_id PK
-    varchar name
-    varchar location
-    timestamptz event_start_time
-    timestamptz event_end_time
-  }
-
-  tickets {
-    varchar ticket_id PK
-    varchar event_id FK
-    varchar user_id
-    timestamptz checked_in_at
-  }
-```
 
 ### Ticket Status 邏輯
 
