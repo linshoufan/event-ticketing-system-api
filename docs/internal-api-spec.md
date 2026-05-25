@@ -105,3 +105,12 @@ X-Internal-Key: <shared_secret>
 
 - **報名前驗證**：Transaction Service 在使用者送出報名前，呼叫 `registration-profile` 確認 `registrationStatus == "active"`；若為 `locked` 則拒絕報名並告知 `unlockAt`。
 - **爽約處罰**：活動結束後若使用者爽約，Transaction Service 呼叫 `punish` 鎖定帳號 30 天。
+
+## 自動解鎖機制
+
+Account Service 內建排程任務，**每天凌晨 1 點**自動掃描 DB：
+- `registrationStatus == "locked"` 且 `unlockAt <= 當前時間` 的使用者會自動解鎖
+- 解鎖後 `registrationStatus → active`，`unlockAt → null`
+
+Transaction Service 不需要主動呼叫任何 API 來解鎖，時間到了會自動處理。
+若需要提前解鎖，請由 welfare_member 透過 `PATCH /v1/users/{userId}/unlock` 手動操作。
