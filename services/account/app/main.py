@@ -1,15 +1,27 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
+from app.core.scheduler import start_scheduler, stop_scheduler
 from app.routers.auth import router as auth_router
 from app.routers.internal import router as internal_router
 from app.routers.me import router as me_router
 from app.routers.users import router as users_router
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    start_scheduler()
+    yield
+    stop_scheduler()
+
+
 app = FastAPI(
     title="NTHU 福委會系統 - 帳戶管理微服務",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 
