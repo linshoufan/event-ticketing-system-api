@@ -5,10 +5,11 @@ from app.core.config import settings
 from app.routers.auth import router as auth_router
 from app.routers.internal import router as internal_router
 from app.routers.me import router as me_router
+from app.routers.tickets import router as tickets_router
 from app.routers.users import router as users_router
 
 app = FastAPI(
-    title="NTHU 福委會系統 - 帳戶管理微服務",
+    title="NTHU 福委會系統 API",
     version="1.0.0"
 )
 
@@ -27,7 +28,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 @app.get("/")
 def read_root():
     return {
-        "message": "Account Management Service is running!",
+        "message": "Event Ticketing System API is running!",
         "environment": settings.account_db_host
     }
 
@@ -35,4 +36,5 @@ def read_root():
 app.include_router(auth_router, prefix="/v1")
 app.include_router(internal_router, prefix="/v1")
 app.include_router(me_router, prefix="/v1")
+app.include_router(tickets_router, prefix="/v1")
 app.include_router(users_router, prefix="/v1")

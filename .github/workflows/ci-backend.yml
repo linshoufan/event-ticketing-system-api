@@ -1,10 +1,10 @@
-name: CI - Account Service
+name: CI - Backend
 
 on:
   pull_request:
     branches: [dev, main]
     paths:
-      - "services/account/**"
+      - "backend/**"
       - "requirements.txt"
 
 jobs:
@@ -53,13 +53,13 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Lint
-        working-directory: services/account
+        working-directory: backend
         run: ruff check app/ tests/
 
       - name: Run migrations
-        working-directory: services/account
+        working-directory: backend
         run: alembic upgrade head
 
       - name: Run tests
-        working-directory: services/account
+        working-directory: backend
         run: pytest tests/ -v --tb=short

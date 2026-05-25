@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 from app.core.database import Base, get_db
 from app.main import app
+from app.models import ticket  # noqa: F401 確保 ticket models 被載入
 from app.models import user  # noqa: F401 確保 models 被載入，Base.metadata 才知道有哪些 table
 
 TEST_DATABASE_URL = (

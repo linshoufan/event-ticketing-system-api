@@ -727,32 +727,6 @@ Response 400
 { "error": { "code": "TICKET_INVALID", "message": "Ticket is used or invalid" } }
 { "error": { "code": "NOT_EVENT_TIME", "message": "Check-in only available during event time" } }
 
-------------------------------
-
-【 GET /events/{eventId}/tickets 】
-查看某活動所有票券狀態（核銷頁面用）
-Roles: welfare_member
-
-Query Params
-?status=unused&page=1&limit=50
-
-Response 200
-{
-  "data": {
-    "summary": { "used": 20, "unused": 18, "invalid": 12 },
-    "tickets": [
-      {
-        "ticketId": "tk_001",
-        "userId": "u_abc123",
-        "username": "john.doe",
-        "status": "unused"
-      }
-    ]
-  },
-  "pagination": { "page": 1, "limit": 50, "total": 50 }
-}
-
-
 ==============================
 Notification
 ==============================
