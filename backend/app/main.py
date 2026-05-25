@@ -9,7 +9,7 @@ from app.routers.tickets import router as tickets_router
 from app.routers.users import router as users_router
 
 app = FastAPI(
-    title="NTHU 福委會系統 API",
+    title="NTHU 票券系統 API",
     version="1.0.0"
 )
 
@@ -29,7 +29,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 def read_root():
     return {
         "message": "Event Ticketing System API is running!",
-        "environment": settings.account_db_host
+        "environment": settings.db_host
     }
 
 

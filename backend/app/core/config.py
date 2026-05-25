@@ -9,11 +9,11 @@ class Settings(BaseSettings):
     )
 
     # Database
-    account_db_host: str = "localhost"
-    account_db_port: int = 5433
-    account_db_user: str = "postgres"
-    account_db_password: str = "postgres"
-    account_db_name: str = "account_db"
+    db_host: str = "localhost"
+    db_port: int = 5433
+    db_user: str = "postgres"
+    db_password: str = "postgres"
+    db_name: str = "event_ticketing_db"
 
     # JWT
     jwt_secret_key: str = "dev-secret-key-change-in-production"

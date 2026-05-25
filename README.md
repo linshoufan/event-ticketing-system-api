@@ -28,7 +28,7 @@ Then review `.env` and adjust values if needed.
 Start PostgreSQL:
 
 ```bash
-docker compose up -d account-db
+docker compose up -d db
 ```
 
 Apply database migrations:
@@ -50,12 +50,19 @@ Open:
 - Swagger docs: http://127.0.0.1:8000/docs
 - OpenAPI JSON: http://127.0.0.1:8000/openapi.json
 
+## Documentation
+
+- Overall API spec: `docs/api-spec.txt`
+- Ticket API spec: `docs/ticket-api-spec.md`
+- Internal API spec: `docs/internal-api-spec.md`
+- Database schema: `docs/db-schema.md`
+
 ## Testing
 
-Tests use `test_account_db`. If the test database does not exist yet, create it first:
+Tests use `test_event_ticketing_db`. If the test database does not exist yet, create it first:
 
 ```bash
-docker compose exec -T account-db psql -U postgres -d postgres -c "CREATE DATABASE test_account_db;"
+docker compose exec -T db psql -U postgres -d postgres -c "CREATE DATABASE test_event_ticketing_db;"
 ```
 
 If the database already exists, this command will fail. That is fine; you can ignore it or verify the database with your preferred DB tool.
@@ -92,5 +99,5 @@ If you previously started the old `ticket-db` service, remove unused orphan cont
 
 ```bash
 docker compose down --remove-orphans
-docker compose up -d account-db
+docker compose up -d db
 ```

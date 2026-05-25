@@ -1,7 +1,7 @@
-# Account Service — Internal API Spec
+# Backend — Internal API Spec
 
-這份文件給其他微服務（例如 Transaction Service）使用。
-所有 internal endpoint 都需要帶 `X-Internal-Key` header，key 值請向帳號服務維護者索取（透過 `.env` 中的 `INTERNAL_API_KEY`）。
+這份文件給 backend 內部或其他模組使用。
+所有 internal endpoint 都需要帶 `X-Internal-Key` header，key 值透過 `.env` 中的 `INTERNAL_API_KEY` 設定。
 
 ---
 

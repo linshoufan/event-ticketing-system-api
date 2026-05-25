@@ -7,12 +7,12 @@ from app.core.config import settings
 def build_database_url() -> str:
     if settings.env == "production":
         return (
-            f"postgresql+psycopg2://{settings.account_db_user}:{settings.account_db_password}"
-            f"@/{settings.account_db_name}?host={settings.account_db_host}"
+            f"postgresql+psycopg2://{settings.db_user}:{settings.db_password}"
+            f"@/{settings.db_name}?host={settings.db_host}"
         )
     return (
-        f"postgresql+psycopg2://{settings.account_db_user}:{settings.account_db_password}"
-        f"@{settings.account_db_host}:{settings.account_db_port}/{settings.account_db_name}"
+        f"postgresql+psycopg2://{settings.db_user}:{settings.db_password}"
+        f"@{settings.db_host}:{settings.db_port}/{settings.db_name}"
     )
 
 

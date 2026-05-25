@@ -1,13 +1,13 @@
 services:
-  account-db:
+  db:
     image: postgres:15-alpine
-    container_name: account_postgres_local
+    container_name: event_ticketing_postgres_local
     environment:
-      POSTGRES_USER: ${ACCOUNT_DB_USER}
-      POSTGRES_PASSWORD: ${ACCOUNT_DB_PASSWORD}
-      POSTGRES_DB: ${ACCOUNT_DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
-      - "${ACCOUNT_DB_PORT}:5432"
+      - "${DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

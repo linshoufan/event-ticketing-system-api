@@ -17,7 +17,7 @@ jobs:
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
-          POSTGRES_DB: test_account_db
+          POSTGRES_DB: test_event_ticketing_db
         ports:
           - 5433:5432
         options: >-
@@ -28,11 +28,11 @@ jobs:
 
     env:
       ENV: local
-      ACCOUNT_DB_HOST: localhost
-      ACCOUNT_DB_PORT: 5433
-      ACCOUNT_DB_USER: test
-      ACCOUNT_DB_PASSWORD: test
-      ACCOUNT_DB_NAME: test_account_db
+      DB_HOST: localhost
+      DB_PORT: 5433
+      DB_USER: test
+      DB_PASSWORD: test
+      DB_NAME: test_event_ticketing_db
       JWT_SECRET_KEY: ci-test-secret-key-do-not-use-in-prod
       JWT_ALGORITHM: HS256
       JWT_EXPIRE_MINUTES: 60

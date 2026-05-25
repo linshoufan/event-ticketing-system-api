@@ -10,8 +10,8 @@ from app.models import ticket  # noqa: F401 確保 ticket models 被載入
 from app.models import user  # noqa: F401 確保 models 被載入，Base.metadata 才知道有哪些 table
 
 TEST_DATABASE_URL = (
-    f"postgresql+psycopg2://{settings.account_db_user}:{settings.account_db_password}"
-    f"@{settings.account_db_host}:{settings.account_db_port}/test_account_db"
+    f"postgresql+psycopg2://{settings.db_user}:{settings.db_password}"
+    f"@{settings.db_host}:{settings.db_port}/test_event_ticketing_db"
 )
 
 
