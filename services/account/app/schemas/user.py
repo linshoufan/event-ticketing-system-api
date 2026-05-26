@@ -3,13 +3,15 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
-# GET /auth/login
+# POST /auth/login request
+class LoginRequest(BaseModel):
+    employeeId: str
+    password: str
+    role: str | None = None
+
+
+# POST /auth/login response
 class LoginResponse(BaseModel):
-    loginUrl: str
-
-
-# GET /auth/callback
-class CallbackResponse(BaseModel):
     token: str
     role: str
 
