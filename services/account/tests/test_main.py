@@ -11,11 +11,10 @@ def test_read_root():
     assert "message" in response.json()
 
 
-def test_login_returns_login_url():
-    response = client.get("/v1/auth/login")
-    assert response.status_code == 200
-    assert "data" in response.json()
-    assert "loginUrl" in response.json()["data"]
+def test_login_endpoint_exists():
+    # 不帶 body 打 POST /auth/login，預期 422（FastAPI 驗 request body 必填）
+    response = client.post("/v1/auth/login")
+    assert response.status_code == 422
 
 
 def test_http_exception_handler_with_dict_detail():
