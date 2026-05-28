@@ -223,3 +223,8 @@ venv/
 
 # SPEC
 * Spec.md
+
+# Node modules
+node_modules/
+
+.DS_Store
