@@ -1,0 +1,45 @@
+export const MOCK_USERS = [
+  {
+    userId: "u_abc123",
+    username: "john.doe",
+    email: "john.doe@company.com",
+    role: "employee",
+    registrationStatus: "active" as const,
+    unlockAt: null,
+    dietType: "non-veg" as const,
+    selfDriving: true,
+    tags: ["sport", "food"],
+    preferences: [
+      {
+        category: "sport",
+        dietType: "non-veg" as const,
+        selfDriving: true,
+        guestCount: 0,
+      }
+    ],
+  },
+  {
+    userId: "u_xyz789",
+    username: "jane.smith",
+    email: "jane.smith@company.com",
+    role: "hr",
+    registrationStatus: "active" as const,
+    unlockAt: null,
+    dietType: "veg" as const,
+    selfDriving: false,
+    tags: ["music", "culture"],
+    preferences: [],
+  },
+  {
+    userId: "u_locked01",
+    username: "bob.wang",
+    email: "bob.wang@company.com",
+    role: "employee",
+    registrationStatus: "locked" as const,
+    unlockAt: "2025-06-18T00:00:00Z",
+    dietType: null,
+    selfDriving: null,
+    tags: ["food", "travel"],
+    preferences: [],
+  },
+]

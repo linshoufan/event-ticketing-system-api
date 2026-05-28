@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+html, body, #root {
+  min-height: 100vh;
+  background-color: #09090b;
+  background-image: 
+    radial-gradient(ellipse at 20% 50%, rgba(30, 58, 138, 0.15) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(88, 28, 135, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 60% 80%, rgba(6, 78, 59, 0.08) 0%, transparent 50%);
+  color: white;
+}
