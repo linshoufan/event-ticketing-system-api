@@ -13,5 +13,18 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  transaction-db:
+    image: postgres:15-alpine
+    container_name: transaction_postgres_local
+    environment:
+      POSTGRES_USER: ${TRANSACTION_DB_USER}
+      POSTGRES_PASSWORD: ${TRANSACTION_DB_PASSWORD}
+      POSTGRES_DB: ${TRANSACTION_DB_NAME}
+    ports:
+      - "${TRANSACTION_DB_PORT}:5432"
+    volumes:
+      - transaction_postgres_data:/var/lib/postgresql/data
+
 volumes:
   postgres_data:
+  transaction_postgres_data:
