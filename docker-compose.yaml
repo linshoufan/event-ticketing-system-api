@@ -13,6 +13,18 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  event-db:
+    image: postgres:15-alpine
+    container_name: event_postgres_local
+    environment:
+      POSTGRES_USER: ${EVENT_DB_USER}
+      POSTGRES_PASSWORD: ${EVENT_DB_PASSWORD}
+      POSTGRES_DB: ${EVENT_DB_NAME}
+    ports:
+      - "${EVENT_DB_PORT}:5432"
+    volumes:
+      - event_postgres_data:/var/lib/postgresql/data
+
   transaction-db:
     image: postgres:15-alpine
     container_name: transaction_postgres_local
@@ -27,4 +39,5 @@ services:
 
 volumes:
   postgres_data:
+  event_postgres_data:
   transaction_postgres_data:
