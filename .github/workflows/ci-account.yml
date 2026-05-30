@@ -6,6 +6,7 @@ on:
     paths:
       - "backend/account/**"
       - "requirements.txt"
+      - ".github/workflows/ci-account.yml"
 
 jobs:
   lint-and-test:
