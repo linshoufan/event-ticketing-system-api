@@ -54,8 +54,7 @@ jobs:
 
       - name: Lint
         working-directory: backend/ticket
-        # Restrict linting to code and tests, ignoring migrations
-        run: ruff check app/ tests/
+        run: ruff check app/ tests/ main.py
 
       - name: Run migrations
         working-directory: backend/ticket
