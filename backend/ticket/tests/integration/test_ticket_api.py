@@ -12,30 +12,31 @@ from app.core.external import get_event_client, EventInfo
 class TestTicketAPI(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # 讀取共用的 mock_data.yaml
+        # Read the shared mock_data.yaml
         base_path = os.path.dirname(__file__)
         yaml_path = os.path.join(base_path, "../../../../scripts/mock_data.yaml")
         with open(yaml_path, "r") as f:
             cls.mock_data = yaml.safe_load(f)
         
-        cls.user = cls.mock_data['user']
+        # Use plural 'users' as defined in YAML
+        cls.user = cls.mock_data['users'][0]
         cls.first_ticket = cls.mock_data['tickets'][0]
 
     def setUp(self):
         self.client = TestClient(app)
         
-        # 模擬驗證邏輯，避免需要真實的 JWT 和 Internal Key
+        # Mock auth logic to avoid needing real JWT or Internal Key
         app.dependency_overrides[get_current_user] = lambda: CurrentUser(
-            user_id=self.user['uuid'], 
+            user_id=self.user['user_id'], 
             role="employee"
         )
         app.dependency_overrides[verify_internal_key] = lambda: None
         
-        # 模擬資料庫 Session
+        # Mock DB Session
         self.db = MagicMock()
         app.dependency_overrides[get_db] = lambda: self.db
         
-        # 模擬 Event Service Client
+        # Mock Event Service Client
         self.event_client = MagicMock()
         app.dependency_overrides[get_event_client] = lambda: self.event_client
 
@@ -43,7 +44,7 @@ class TestTicketAPI(unittest.TestCase):
         app.dependency_overrides.clear()
 
     def test_get_my_tickets_api(self):
-        # 模擬 Service 回傳
+        # Mock Service return
         with patch("app.services.ticket_service.TicketService.get_user_tickets") as mock_service:
             mock_service.return_value = [
                 {
@@ -60,19 +61,19 @@ class TestTicketAPI(unittest.TestCase):
             self.assertEqual(response.json()["data"][0]["ticketId"], self.first_ticket['id'])
 
     def test_issue_ticket_internal_api(self):
-        # 測試內部 API: POST /v1/internal/tickets
+        # Test Internal API: POST /v1/internal/tickets
         with patch("app.services.ticket_service.TicketService.create_ticket") as mock_create:
             mock_ticket = MagicMock()
             mock_ticket.to_dict.return_value = {"ticketId": "new_tk"}
             mock_create.return_value = mock_ticket
             
             payload = {
-                "userId": self.user['uuid'],
+                "userId": self.user['user_id'],
                 "eventId": "ev_001",
                 "transactionId": "tx_new"
             }
             
-            # 內部 API 需帶 X-Internal-Key，但我們已經 override 了驗證邏輯
+            # Internal API requires X-Internal-Key, but we've overridden verification
             response = self.client.post("/v1/internal/tickets", json=payload)
             
             self.assertEqual(response.status_code, 201)

@@ -5,52 +5,57 @@ from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone, timedelta
 from app.services.ticket_service import TicketService
 from app.models.ticket import Ticket
-from app.core.external import EventInfo
+from app.repositories.ticket_repository import TicketRepository
+from app.core.external import EventInfo, AccountClient
 
 class TestTicketService(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # 讀取共用的 mock_data.yaml
+        # Read the shared mock_data.yaml
         base_path = os.path.dirname(__file__)
-        yaml_path = os.path.join(base_path, "../../../scripts/mock_data.yaml")
+        yaml_path = os.path.join(base_path, "../../../../scripts/mock_data.yaml")
         with open(yaml_path, "r") as f:
             cls.mock_data = yaml.safe_load(f)
         
-        cls.user = cls.mock_data['user']
+        cls.user = cls.mock_data['users'][0]
         cls.first_ticket = cls.mock_data['tickets'][0]
         cls.first_event = cls.mock_data['events'][0]
 
     def setUp(self):
-        self.db = MagicMock()
+        # Mock dependencies
+        self.repo = MagicMock(spec=TicketRepository)
         self.event_client = MagicMock()
-        self.service = TicketService(self.db, self.event_client)
+        self.account_client = MagicMock(spec=AccountClient)
+        
+        # Instantiate Service with all required dependencies
+        self.service = TicketService(self.repo, self.event_client, self.account_client)
 
     def test_create_ticket_success(self):
-        # 使用 YAML 中的資料
-        self.db.query().filter().first.side_effect = [None, None]
+        # Setup repo and client mocks
+        self.repo.get_by_transaction_id.return_value = None
+        self.repo.get_active_ticket.return_value = None
+        self.account_client.verify_user_exists.return_value = True
         
-        ticket = self.service.create_ticket(
-            self.user['uuid'], 
+        self.service.create_ticket(
+            self.user['user_id'], 
             self.first_event['id'], 
             "new_tx_id"
         )
         
-        self.db.add.assert_called_once()
-        self.db.commit.assert_called_once()
+        self.repo.create.assert_called_once()
 
     def test_void_ticket_success(self):
         mock_ticket = MagicMock(spec=Ticket)
         mock_ticket.status = "unused"
-        self.db.query().filter().first.return_value = mock_ticket
+        self.repo.get_by_id.return_value = mock_ticket
         
         result = self.service.void_ticket(self.first_ticket['id'])
         
         self.assertTrue(result)
-        self.db.delete.assert_called_once_with(mock_ticket)
-        self.db.commit.assert_called_once()
+        self.repo.delete.assert_called_once_with(mock_ticket)
 
     def test_calculate_distance(self):
-        # 台北 101 到 台北車站 (約 5km)
+        # Taipei 101 to Taipei Station (approx 5km)
         lat1, lon1 = 25.0339, 121.5644
         lat2, lon2 = 25.0478, 121.5170
         
@@ -61,8 +66,9 @@ class TestTicketService(unittest.TestCase):
     def test_checkin_out_of_range(self):
         mock_ticket = MagicMock(spec=Ticket)
         mock_ticket.status = "unused"
+        mock_ticket.user_id = self.user['user_id']
         mock_ticket.event_id = self.first_event['id']
-        self.db.query().filter().first.return_value = mock_ticket
+        self.repo.get_by_id.return_value = mock_ticket
         
         mock_event = MagicMock(spec=EventInfo)
         mock_event.latitude = 25.0339
@@ -74,8 +80,8 @@ class TestTicketService(unittest.TestCase):
         
         from fastapi import HTTPException
         with self.assertRaises(HTTPException) as cm:
-            # 台北車站的座標 (超出 100m 範圍)
-            self.service.checkin(self.first_ticket['id'], self.user['uuid'], 25.0478, 121.5170)
+            # Taipei Station (out of 100m range)
+            self.service.checkin(self.first_ticket['id'], self.user['user_id'], 25.0478, 121.5170)
         
         self.assertEqual(cm.exception.status_code, 400)
         self.assertEqual(cm.exception.detail["code"], "OUT_OF_RANGE")

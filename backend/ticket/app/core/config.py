@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     internal_api_key: str = "dev-internal-key"
 
     # Other services
+    account_service_url: str = "http://localhost:8000"
     event_service_url: str = "http://localhost:3000"
 
     # Environment

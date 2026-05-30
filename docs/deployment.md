@@ -20,7 +20,16 @@ Backend needs:
 
 ## 3. Local development mapping
 
-### 3.1 Start Databases
+### 3.1 Install Dependencies
+
+Install the required Python packages for all backend services:
+
+```bash
+# From root directory
+pip install -r requirements.txt
+```
+
+### 3.2 Start Databases
 
 Start the local databases from the repo root:
 
@@ -33,7 +42,7 @@ This will start:
 - `transaction-db` (Port 5434)
 - `ticket-db` (Port 5435)
 
-### 3.2 Initialize Data (Optional)
+### 3.3 Initialize Data (Optional)
 
 Run the global seed script to populate mock data for all services (Users, Events, Transactions, Tickets):
 
@@ -42,7 +51,7 @@ Run the global seed script to populate mock data for all services (Users, Events
 python scripts/seed_all.py
 ```
 
-### 3.3 Start Services
+### 3.4 Start Services
 
 - **Account Service** (Port 8000):
   `cd backend/account && uvicorn main:app --reload --port 8000`

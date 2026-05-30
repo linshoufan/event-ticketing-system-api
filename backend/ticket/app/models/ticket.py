@@ -2,19 +2,18 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, String
-from sqlalchemy.dialects.postgresql import UUID
-
 from app.core.database import Base
 
 
 class Ticket(Base):
     __tablename__ = "tickets"
 
-    ticket_id = Column(String, primary_key=True, default=lambda: f"tk_{uuid.uuid4().hex[:8]}")
-    user_id = Column(String, nullable=False, index=True)
-    event_id = Column(String, nullable=False, index=True)
-    transaction_id = Column(String, nullable=False, unique=True)
-    status = Column(String, nullable=False, default="unused")  # unused, used, invalid
+    # Using String(36) to align with Account Service's user_id definition
+    ticket_id = Column(String(50), primary_key=True, default=lambda: f"tk_{uuid.uuid4().hex[:8]}")
+    user_id = Column(String(36), nullable=False, index=True)
+    event_id = Column(String(50), nullable=False, index=True)
+    transaction_id = Column(String(50), nullable=False, unique=True)
+    status = Column(String(20), nullable=False, default="unused")  # unused, used, invalid
     issued_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     checked_in_at = Column(DateTime(timezone=True), nullable=True)
 

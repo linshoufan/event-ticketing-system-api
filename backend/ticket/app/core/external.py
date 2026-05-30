@@ -1,7 +1,7 @@
 import httpx
 from datetime import datetime, timezone
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 from app.core.config import settings
 
 @dataclass
@@ -63,10 +63,37 @@ class EventClient:
             event_end_time=_parse_iso(data["eventEndTime"]),
         )
 
+class AccountClient:
+    """Internal client to verify user data with Account Service."""
+    def __init__(self, base_url: str | None = None, internal_key: str | None = None, timeout: float = 5.0):
+        self._client = httpx.Client(
+            base_url=base_url or settings.account_service_url,
+            timeout=timeout,
+            headers={"X-Internal-Key": internal_key or settings.internal_api_key}
+        )
+
+    def close(self) -> None:
+        self._client.close()
+
+    def verify_user_exists(self, user_uuid: str) -> bool:
+        """Call internal registration-profile to verify user."""
+        try:
+            response = self._client.get(f"/v1/internal/users/{user_uuid}/registration-profile")
+            return response.status_code == 200
+        except Exception:
+            return False
+
 _event_client: Optional[EventClient] = None
+_account_client: Optional[AccountClient] = None
 
 def get_event_client() -> EventClient:
     global _event_client
     if _event_client is None:
         _event_client = EventClient()
     return _event_client
+
+def get_account_client() -> AccountClient:
+    global _account_client
+    if _account_client is None:
+        _account_client = AccountClient(base_url=settings.account_service_url)
+    return _account_client

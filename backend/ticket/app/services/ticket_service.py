@@ -4,21 +4,34 @@ from typing import List, Optional
 
 from app.models.ticket import Ticket
 from app.repositories.ticket_repository import TicketRepository
-from app.core.external import EventClient, EventInfo
+from app.core.external import EventClient, EventInfo, AccountClient
 from fastapi import HTTPException, status
 
 class TicketService:
-    def __init__(self, repository: TicketRepository, event_client: EventClient):
+    def __init__(self, repository: TicketRepository, event_client: EventClient, account_client: AccountClient):
         self.repo = repository
         self.event_client = event_client
+        self.account_client = account_client
 
     def create_ticket(self, user_id: str, event_id: str, transaction_id: str) -> Ticket:
-        # Check if ticket already exists for this transaction
+        """Create a ticket. user_id is the employee_id."""
+        
+        # Verify user exists in Account Service
+        if not self.account_client.verify_user_exists(user_id):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "code": "USER_NOT_FOUND", 
+                    "message": f"User {user_id} not found in Account Service."
+                }
+            )
+
+        # Idempotency check
         existing = self.repo.get_by_transaction_id(transaction_id)
         if existing:
             return existing
         
-        # Check if active ticket already exists for user and event
+        # Conflict check
         active_ticket = self.repo.get_active_ticket(user_id, event_id)
         if active_ticket:
             raise HTTPException(
@@ -41,7 +54,7 @@ class TicketService:
     def void_ticket(self, ticket_id: str) -> bool:
         ticket = self.repo.get_by_id(ticket_id)
         if not ticket:
-            return True # Idempotent
+            return True
         
         if ticket.status == "used":
             raise HTTPException(
@@ -61,10 +74,6 @@ class TicketService:
                 detail={"code": "EVENT_NOT_ENDED", "message": "Event has not ended yet"}
             )
         
-        # We can query unused tickets through repo
-        # Note: we filter by event_id and status='unused'
-        # To be strict, we'd add this method to repo, but using user filter for now as proxy
-        # Better: add to repo if it's a common query
         tickets = self.repo.db.query(Ticket).filter(
             Ticket.event_id == event_id,
             Ticket.status == "unused"
@@ -139,7 +148,6 @@ class TicketService:
                 "qrPayload": f"{ticket.ticket_id}:{ticket.event_id}:{ticket.user_id}:sig_mock"
             }
         except Exception as e:
-            # If Event Service is unreachable, return basic information
             return {
                 "ticketId": ticket.ticket_id,
                 "userId": ticket.user_id,
@@ -191,8 +199,7 @@ class TicketService:
         }
 
     def _calculate_distance(self, lat1, lon1, lat2, lon2):
-        # Haversine formula
-        R = 6371000  # Radius of the earth in meters
+        R = 6371000
         phi1 = math.radians(lat1)
         phi2 = math.radians(lat2)
         dphi = math.radians(lat2 - lat1)

@@ -20,19 +20,19 @@ def seed_all():
     with open(yaml_path, "r") as f:
         data = yaml.safe_load(f)
 
-    # 1. Seed Account Users
+    # 1. Seed Account Users (user_id IS the unique identifier for both PK and login)
     engine = get_engine("account_db", 5433)
     with engine.connect() as conn:
         for u in data['users']:
-            conn.execute(text("DELETE FROM users WHERE username = :emp_id"), {"emp_id": u['employee_id']})
+            conn.execute(text("DELETE FROM users WHERE user_id = :uid OR username = :uid"), {"uid": u['user_id']})
             conn.execute(text("""
                 INSERT INTO users (user_id, username, email, role, registration_status, created_at, updated_at)
-                VALUES (:uuid, :emp_id, :email, :role, 'active', NOW(), NOW())
-            """), {"uuid": u['uuid'], "emp_id": u['employee_id'], "email": u['email'], "role": u['role']})
+                VALUES (:uid, :uid, :email, :role, 'active', NOW(), NOW())
+            """), {"uid": u['user_id'], "email": u['email'], "role": u['role']})
         conn.commit()
     print(f"✅ Seeded {len(data['users'])} Account Users")
 
-    # 2. Seed Events
+    # 2. Seed Events (Ensuring table exists)
     engine = get_engine("event_db", 5432)
     with engine.connect() as conn:
         conn.execute(text("""
@@ -117,4 +117,4 @@ def seed_all():
 
 if __name__ == "__main__":
     seed_all()
-    print("\n🚀 Mock data synchronized with YAML and multi-user support added!")
+    print("\n🚀 Mock data is prepared!")

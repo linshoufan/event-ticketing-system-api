@@ -6,7 +6,6 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.config import settings
 from app.core.security import decode_access_token
 
-# 改用 HTTPBearer，Swagger 會顯示單純的 Token 輸入框
 security_scheme = HTTPBearer(auto_error=False)
 
 
