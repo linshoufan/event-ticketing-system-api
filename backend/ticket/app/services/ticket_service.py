@@ -1,10 +1,10 @@
 import math
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List
 
 from app.models.ticket import Ticket
 from app.repositories.ticket_repository import TicketRepository
-from app.core.external import EventClient, EventInfo, AccountClient
+from app.core.external import EventClient, AccountClient
 from fastapi import HTTPException, status
 
 class TicketService:
@@ -74,10 +74,8 @@ class TicketService:
                 detail={"code": "EVENT_NOT_ENDED", "message": "Event has not ended yet"}
             )
         
-        tickets = self.repo.db.query(Ticket).filter(
-            Ticket.event_id == event_id,
-            Ticket.status == "unused"
-        ).all()
+        # Consistent use of repository
+        tickets = self.repo.get_event_tickets(event_id, status="unused", page=1, limit=1000)
         return [t.ticket_id for t in tickets]
 
     def get_user_tickets(self, user_id: str, status_filter: str = None) -> List[dict]:
