@@ -1,7 +1,7 @@
 import unittest
 import yaml
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from datetime import datetime, timezone, timedelta
 from app.services.ticket_service import TicketService
 from app.models.ticket import Ticket

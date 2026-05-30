@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 from main import app
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, verify_internal_key, CurrentUser
-from app.core.external import get_event_client, EventInfo
+from app.core.external import get_event_client
 
 class TestTicketAPI(unittest.TestCase):
     @classmethod

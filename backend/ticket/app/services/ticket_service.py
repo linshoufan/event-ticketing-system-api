@@ -145,7 +145,7 @@ class TicketService:
                 "checkinAvailable": checkin_available,
                 "qrPayload": f"{ticket.ticket_id}:{ticket.event_id}:{ticket.user_id}:sig_mock"
             }
-        except Exception as e:
+        except Exception:
             return {
                 "ticketId": ticket.ticket_id,
                 "userId": ticket.user_id,
