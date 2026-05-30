@@ -1,7 +1,7 @@
 import httpx
 from datetime import datetime, timezone
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Optional
 from app.core.config import settings
 
 @dataclass
