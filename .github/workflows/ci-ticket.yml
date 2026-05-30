@@ -7,7 +7,6 @@ on:
       - "backend/ticket/**"
       - "scripts/**"
       - "requirements.txt"
-      - ".github/workflows/ci-ticket.yml"
 
 jobs:
   lint-and-test:
@@ -36,6 +35,8 @@ jobs:
       TICKET_DB_USER: test
       TICKET_DB_PASSWORD: test
       TICKET_DB_NAME: test_ticket_db
+      ACCOUNT_SERVICE_URL: http://localhost:8000
+      EVENT_SERVICE_URL: http://localhost:3000
       JWT_SECRET_KEY: ci-test-secret-key-do-not-use-in-prod
       JWT_ALGORITHM: HS256
       INTERNAL_API_KEY: ci-test-internal-key
@@ -49,13 +50,12 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install pytest pytest-mock  # Ensure test runners are available
+        run: pip install -r requirements.txt
 
       - name: Lint
         working-directory: backend/ticket
-        run: ruff check .
+        # Restrict linting to code and tests, ignoring migrations
+        run: ruff check app/ tests/
 
       - name: Run migrations
         working-directory: backend/ticket
