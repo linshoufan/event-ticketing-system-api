@@ -103,7 +103,7 @@ X-Internal-Key: <shared_secret>
 
 ## 使用場景
 
-- **報名前驗證**：Transaction Service 在使用者送出報名前，呼叫 `registration-profile` 確認 `registrationStatus == "active"`；若為 `locked` 則拒絕報名並告知 `unlockAt`。
+- **報名前驗證**：Transaction Service 在使用者送出報名前，呼叫 `registration-profile` 確認 `registrationStatus == "active"`；若為 `locked`則拒絕報名並告知 `unlockAt`。
 - **爽約處罰**：活動結束後若使用者爽約，Transaction Service 呼叫 `punish` 鎖定帳號 30 天。
 
 ## 自動解鎖機制
@@ -118,9 +118,7 @@ Transaction Service 不需要主動呼叫任何 API 來解鎖，時間到了會�
 ---
 ---
 
-# Ticket Service — Internal API Spec (Proposed by Transaction Service)
-
-> **Status: 待 Ticket Service 實作**
+# Ticket Service — Internal API Spec
 >
 > 本段落由 Transaction Service 提出，作為 Transaction → Ticket 跨服務互動的契約。
 > 在 Ticket Service 完成這幾個 endpoint、且 Transaction Service 的 `.env` 設定
@@ -146,7 +144,7 @@ Base URL（local）：`http://localhost:8001`
                                         │
                                         ├─ GET registration-profile (Account internal)
                                         ├─ GET event detail        (Event public)
-                                        └─ POST /v1/internal/tickets (Ticket internal) ←─ 本段所定義
+                                        └─ POST /v1/internal/tickets (Ticket internal)
 ```
 
 ---

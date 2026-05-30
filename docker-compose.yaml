@@ -12,6 +12,11 @@ services:
       - "${ACCOUNT_DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ACCOUNT_DB_USER} -d ${ACCOUNT_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   event-db:
     image: postgres:15-alpine
@@ -24,6 +29,11 @@ services:
       - "${EVENT_DB_PORT}:5432"
     volumes:
       - event_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${EVENT_DB_USER} -d ${EVENT_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   transaction-db:
     image: postgres:15-alpine
@@ -36,8 +46,52 @@ services:
       - "${TRANSACTION_DB_PORT}:5432"
     volumes:
       - transaction_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TRANSACTION_DB_USER} -d ${TRANSACTION_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  ticket-db:
+    image: postgres:15-alpine
+    container_name: ticket_postgres_local
+    environment:
+      POSTGRES_USER: ${TICKET_DB_USER}
+      POSTGRES_PASSWORD: ${TICKET_DB_PASSWORD}
+      POSTGRES_DB: ${TICKET_DB_NAME}
+    ports:
+      - "${TICKET_DB_PORT}:5432"
+    volumes:
+      - ticket_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TICKET_DB_USER} -d ${TICKET_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  seed-data:
+    image: python:3.11-slim
+    container_name: seed_data_init
+    volumes:
+      - .:/app
+    working_dir: /app
+    environment:
+      - PYTHONPATH=/app
+    depends_on:
+      account-db:
+        condition: service_healthy
+      event-db:
+        condition: service_healthy
+      transaction-db:
+        condition: service_healthy
+      ticket-db:
+        condition: service_healthy
+    command: >
+      sh -c "pip install PyYAML SQLAlchemy psycopg2-binary && 
+             python scripts/seed_all.py"
 
 volumes:
   postgres_data:
   event_postgres_data:
   transaction_postgres_data:
+  ticket_postgres_data:
