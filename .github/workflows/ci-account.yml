@@ -28,6 +28,7 @@ jobs:
 
     env:
       ENV: local
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       ACCOUNT_DB_HOST: localhost
       ACCOUNT_DB_PORT: 5433
       ACCOUNT_DB_USER: test
