@@ -29,6 +29,7 @@ jobs:
 
     env:
       ENV: local
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       TICKET_DB_HOST: localhost
       TICKET_DB_PORT: 5435
       TICKET_DB_USER: test
