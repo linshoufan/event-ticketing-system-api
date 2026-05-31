@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.dependencies import CurrentUser, role_required
 from app.core.external import AccountClient, ExternalServiceError, get_account_client
-from app.core.response import success
 from app.models.transaction import Transaction
 from app.services import transaction_service
 

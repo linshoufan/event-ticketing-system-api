@@ -1,0 +1,54 @@
+name: CI - Transaction Service
+
+on:
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - "backend/transaction/**"
+      - "requirements.txt"
+      - ".github/workflows/ci-transaction.yml"
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_transaction_db
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    env:
+      ENV: local
+      TRANSACTION_DB_HOST: localhost
+      TRANSACTION_DB_PORT: 5434
+      TRANSACTION_DB_USER: test
+      TRANSACTION_DB_PASSWORD: test
+      TRANSACTION_DB_NAME: test_transaction_db
+      ACCOUNT_SERVICE_URL: http://localhost:8000
+      EVENT_SERVICE_URL: http://localhost:3000
+      TICKET_SERVICE_URL: http://localhost:8001
+      JWT_SECRET_KEY: ci-test-secret-key-do-not-use-in-prod
+      JWT_ALGORITHM: HS256
+      INTERNAL_API_KEY: ci-test-internal-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Lint
+        working-directory: backend/transaction
+        run: ruff check app/ tests/ main.py
+      - name: Run migrations
+        working-directory: backend/transaction
+        run: alembic upgrade head
+      - name: Run tests
+        working-directory: backend/transaction
+        run: pytest tests/ --cov=app --cov-report=term-missing
