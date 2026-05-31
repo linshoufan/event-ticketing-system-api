@@ -20,7 +20,6 @@ from jose import jwt
 
 from app.core.config import settings
 from app.core.database import SessionLocal, engine, Base
-from app.core.dependencies import get_current_user, CurrentUser
 from app.core.external import (
     EVENT_STATUS_REGISTERING,
     EventInfo,
@@ -59,6 +58,8 @@ class FakeAccountClient:
     def __init__(self):
         self.profiles: dict[str, RegistrationProfile] = {}
         self.punished: list[str] = []
+        self.autofill_updates: list[dict] = []
+        self.invalidated: list[str] = []
 
     def set_profile(self, user_id, role="employee", locked=False,
                     diet="non-veg", driving=False, username=None):
@@ -77,8 +78,25 @@ class FakeAccountClient:
             raise ExternalNotFoundError("AccountService", "user not found", 404)
         return self.profiles[user_id]
 
+    def update_autofill(self, user_id, diet_type, self_driving):
+        # 對齊真實 AccountClient.update_autofill 的簽名
+        self.autofill_updates.append(
+            {"userId": user_id, "dietType": diet_type, "selfDriving": self_driving}
+        )
+        # 同時更新 in-memory profile，模擬 Account 寫入後的效果
+        if user_id in self.profiles:
+            prof = self.profiles[user_id]
+            if diet_type is not None:
+                prof.autofill_diet_type = diet_type
+            if self_driving is not None:
+                prof.autofill_self_driving = self_driving
+
+    def invalidate_profile_cache(self, user_id):
+        self.invalidated.append(user_id)
+
     def punish_user(self, user_id):
         self.punished.append(user_id)
+        self.invalidate_profile_cache(user_id)
         return {"userId": user_id, "registrationStatus": "locked"}
 
 

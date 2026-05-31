@@ -51,5 +51,10 @@ def update_autofill(
     db: Session = Depends(get_db),
     _: None = Depends(verify_internal_key),
 ):
-
+    user_service.update_user_autofill(
+        user_id=user_id,
+        diet_type=body.dietType,
+        self_driving=body.selfDriving,
+        db=db,
+    )
     return success({"updated": True})

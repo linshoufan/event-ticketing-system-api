@@ -12,7 +12,6 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Iterable
 
 from fastapi import HTTPException, status
 from sqlalchemy import case, func, text
@@ -23,10 +22,9 @@ from app.core.dependencies import CurrentUser
 from app.core.external import (
     AccountClient,
     EventClient,
-    EventInfo,
     TicketClient,
 )
-from app.models.transaction import ACTIVE_STATUSES, Transaction, utcnow
+from app.models.transaction import Transaction, utcnow
 from app.services import eligibility_service
 from app.services.eligibility_service import EligibilityResult
 
@@ -381,12 +379,14 @@ def update_registration(
         event = event_client.get_event(tx.event_id)
         # 依 api-spec：guestCount 僅限不限名額的活動可修改
         if event.has_capacity_limit:
-            if guest_count > 0:
+            # 限名額活動只能是本人（guest_count 必須為 0）；非 0 一律擋下
+            if guest_count != 0:
                 raise _http_error(
                     status.HTTP_400_BAD_REQUEST,
                     "GUEST_NOT_ALLOWED",
                     "Limited-capacity events do not allow guests",
                 )
+            tx.guest_count = 0
         else:
             tx.guest_count = guest_count
     if diet_type is not None:

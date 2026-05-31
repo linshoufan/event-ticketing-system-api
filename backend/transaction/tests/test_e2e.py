@@ -32,7 +32,7 @@ from app.core.external import (
     RegistrationProfile,
 )
 from app.models.transaction import Transaction
-from app.services import transaction_service, eligibility_service, no_show_service
+from app.services import transaction_service, no_show_service
 
 now = datetime.now(timezone.utc)
 
