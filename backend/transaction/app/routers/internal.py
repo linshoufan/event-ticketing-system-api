@@ -3,7 +3,7 @@
 目前只有一個：觸發某活動的 No-Show 處罰。
 需帶 X-Internal-Key（供 cron job / Cloud Scheduler / welfare_member 後台呼叫）。
 
-未來可由以下任一方式觸發：
+可由以下任一方式觸發：
 - Cloud Scheduler 每天打這個 endpoint，掃過去結束的活動
 - Event Service 在把活動狀態改成 ENDED 時，透過 Pub/Sub 通知後再呼叫
 """
@@ -24,7 +24,6 @@ from app.core.response import success
 from app.services import no_show_service
 
 router = APIRouter()
-
 
 @router.post("/internal/events/{event_id}/punish-no-shows", response_model=dict)
 def punish_no_shows(

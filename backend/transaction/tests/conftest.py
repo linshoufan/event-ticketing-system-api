@@ -34,21 +34,17 @@ from app.models.transaction import Transaction
 
 NOW = datetime.now(timezone.utc)
 
-
-# ---------------------------------------------------------------------------
 # DB
-# ---------------------------------------------------------------------------
 @pytest.fixture(scope="session", autouse=True)
 def _ensure_schema():
     """確保 transactions 表存在（測試環境用 create_all，正式環境走 alembic）。"""
     Base.metadata.create_all(bind=engine)
     yield
 
-
 @pytest.fixture
 def db():
     session = SessionLocal()
-    # 清空，確保乾淨起點
+    # 清空
     session.query(Transaction).delete()
     session.commit()
     try:
@@ -58,23 +54,21 @@ def db():
         session.commit()
         session.close()
 
-
-# ---------------------------------------------------------------------------
 # Fake external clients
-# ---------------------------------------------------------------------------
 class FakeAccountClient:
     def __init__(self):
         self.profiles: dict[str, RegistrationProfile] = {}
         self.punished: list[str] = []
 
     def set_profile(self, user_id, role="employee", locked=False,
-                    diet="non-veg", driving=False):
+                    diet="non-veg", driving=False, username=None):
         self.profiles[user_id] = RegistrationProfile(
             user_id=user_id, role=role,
             registration_status="locked" if locked else "active",
             unlock_at=(NOW + timedelta(days=30)) if locked else None,
             autofill_diet_type=diet, autofill_self_driving=driving,
             preferences=[],
+            username=username,
         )
 
     def get_registration_profile(self, user_id):
@@ -148,9 +142,7 @@ def fake_ticket():
     return FakeTicketClient()
 
 
-# ---------------------------------------------------------------------------
 # Client with overrides
-# ---------------------------------------------------------------------------
 @pytest.fixture
 def client(db, fake_account, fake_event, fake_ticket):
     from app.core.database import get_db
@@ -172,9 +164,7 @@ def client(db, fake_account, fake_event, fake_ticket):
     app.dependency_overrides.clear()
 
 
-# ---------------------------------------------------------------------------
 # Auth helpers
-# ---------------------------------------------------------------------------
 def make_token(user_id: str, role: str = "employee") -> str:
     payload = {
         "user_id": user_id,

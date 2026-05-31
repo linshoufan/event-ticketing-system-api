@@ -27,9 +27,6 @@ class Settings(BaseSettings):
     event_service_url: str = "http://localhost:3000"
     ticket_service_url: str = "http://localhost:8001"
 
-    # Ticket Service 是否啟用
-    # 因為 Ticket Service 尚未整合到 dev branch，先設 False
-    # 改 True 後，報名成功時會真的打 Ticket Service 建立票券
     ticket_service_enabled: bool = False
 
     # Environment

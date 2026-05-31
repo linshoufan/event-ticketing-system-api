@@ -1,9 +1,6 @@
 """POST / GET / PATCH / DELETE /v1/transactions 的測試。"""
 
-
-# ---------------------------------------------------------------------------
 # POST /transactions
-# ---------------------------------------------------------------------------
 def test_register_confirmed(client, fake_account, fake_event, fake_ticket, auth):
     fake_account.set_profile("u-1", diet="veg", driving=True)
     fake_event.set_event("e-1", ticket_limit=5)
@@ -13,7 +10,6 @@ def test_register_confirmed(client, fake_account, fake_event, fake_ticket, auth)
     assert d["status"] == "confirmed"
     assert d["ticketId"] == "tk-1"
     assert d["waitlistNumber"] is None
-
 
 def test_register_autofill_applied(client, fake_account, fake_event, auth):
     fake_account.set_profile("u-1", diet="veg", driving=True)
@@ -25,7 +21,6 @@ def test_register_autofill_applied(client, fake_account, fake_event, auth):
     assert detail["dietType"] == "veg"
     assert detail["selfDriving"] is True
 
-
 def test_register_duplicate_409(client, fake_account, fake_event, auth):
     fake_account.set_profile("u-1")
     fake_event.set_event("e-1", ticket_limit=5)
@@ -33,7 +28,6 @@ def test_register_duplicate_409(client, fake_account, fake_event, auth):
     r = client.post("/v1/transactions", headers=auth("u-1"), json={"eventId": "e-1"})
     assert r.status_code == 409
     assert r.json()["error"]["code"] == "ALREADY_REGISTERED"
-
 
 def test_register_waitlist_when_full(client, fake_account, fake_event, auth):
     fake_event.set_event("e-1", ticket_limit=2)
@@ -45,7 +39,6 @@ def test_register_waitlist_when_full(client, fake_account, fake_event, auth):
         statuses.append(r.json()["data"]["status"])
     assert statuses == ["confirmed", "confirmed", "waitlist"]
 
-
 def test_register_locked_409_account_locked(client, fake_account, fake_event, auth):
     fake_account.set_profile("u-1", locked=True)
     fake_event.set_event("e-1", ticket_limit=5)
@@ -54,7 +47,6 @@ def test_register_locked_409_account_locked(client, fake_account, fake_event, au
     err = r.json()["error"]
     assert err["code"] == "ACCOUNT_LOCKED"
     assert "unlockAt" in err
-
 
 def test_register_limited_event_forces_guest_zero(client, fake_account, fake_event, auth):
     fake_account.set_profile("u-1")
@@ -65,7 +57,6 @@ def test_register_limited_event_forces_guest_zero(client, fake_account, fake_eve
     detail = client.get(f"/v1/transactions/{tx_id}", headers=auth("u-1")).json()["data"]
     assert detail["guestCount"] == 0
 
-
 def test_register_unlimited_event_allows_guest(client, fake_account, fake_event, auth):
     fake_account.set_profile("u-1")
     fake_event.set_event("e-1", ticket_limit=None)
@@ -75,7 +66,6 @@ def test_register_unlimited_event_allows_guest(client, fake_account, fake_event,
     detail = client.get(f"/v1/transactions/{tx_id}", headers=auth("u-1")).json()["data"]
     assert detail["guestCount"] == 4
 
-
 def test_register_draft_event_blocked(client, fake_account, fake_event, auth):
     fake_account.set_profile("u-1")
     fake_event.set_event("e-1", ticket_limit=5, is_draft=True)
@@ -83,9 +73,7 @@ def test_register_draft_event_blocked(client, fake_account, fake_event, auth):
     assert r.status_code >= 400
 
 
-# ---------------------------------------------------------------------------
 # GET /transactions
-# ---------------------------------------------------------------------------
 def test_list_my_transactions_enriched(client, fake_account, fake_event, auth):
     fake_account.set_profile("u-1")
     fake_event.set_event("e-1", ticket_limit=5)
@@ -96,7 +84,6 @@ def test_list_my_transactions_enriched(client, fake_account, fake_event, auth):
     assert body["pagination"]["total"] == 1
     assert body["data"][0]["eventName"] == "Event e-1"
     assert body["data"][0]["eventStartTime"] is not None
-
 
 def test_list_my_transactions_status_filter(client, fake_account, fake_event, auth):
     fake_event.set_event("e-1", ticket_limit=1)
@@ -109,12 +96,10 @@ def test_list_my_transactions_status_filter(client, fake_account, fake_event, au
     assert len(data) == 1
     assert data[0]["status"] == "waitlist"
 
-
 def test_get_single_not_found(client, fake_account, fake_event, auth):
     fake_account.set_profile("u-1")
     r = client.get("/v1/transactions/nonexistent", headers=auth("u-1"))
     assert r.status_code == 404
-
 
 def test_get_single_other_user_forbidden(client, fake_account, fake_event, auth):
     fake_account.set_profile("u-1")
@@ -127,9 +112,7 @@ def test_get_single_other_user_forbidden(client, fake_account, fake_event, auth)
     assert r.status_code == 403
 
 
-# ---------------------------------------------------------------------------
 # PATCH /transactions
-# ---------------------------------------------------------------------------
 def test_update_transaction(client, fake_account, fake_event, auth):
     fake_account.set_profile("u-1")
     fake_event.set_event("e-1", ticket_limit=None)
@@ -143,7 +126,6 @@ def test_update_transaction(client, fake_account, fake_event, auth):
     assert detail["dietType"] == "veg"
     assert detail["guestCount"] == 2
 
-
 def test_update_guest_on_limited_event_rejected(client, fake_account, fake_event, auth):
     fake_account.set_profile("u-1")
     fake_event.set_event("e-1", ticket_limit=5)
@@ -155,9 +137,7 @@ def test_update_guest_on_limited_event_rejected(client, fake_account, fake_event
     assert r.json()["error"]["code"] == "GUEST_NOT_ALLOWED"
 
 
-# ---------------------------------------------------------------------------
 # DELETE /transactions
-# ---------------------------------------------------------------------------
 def test_cancel_confirmed_promotes_waitlist(client, fake_account, fake_event, fake_ticket, auth):
     from datetime import timedelta
     from tests.conftest import NOW
@@ -174,7 +154,6 @@ def test_cancel_confirmed_promotes_waitlist(client, fake_account, fake_event, fa
     assert d["promoted"]["userId"] == "u-2"
     assert d["promoted"]["status"] == "confirmed"
 
-
 def test_cancel_no_deadline_blocked(client, fake_account, fake_event, auth):
     fake_account.set_profile("u-1")
     fake_event.set_event("e-1", ticket_limit=5, cancellation_deadline=None)
@@ -183,7 +162,6 @@ def test_cancel_no_deadline_blocked(client, fake_account, fake_event, auth):
     r = client.delete(f"/v1/transactions/{tx_id}", headers=auth("u-1"))
     assert r.status_code == 400
     assert r.json()["error"]["code"] == "NOT_CANCELLABLE"
-
 
 def test_cancel_past_deadline_blocked(client, fake_account, fake_event, auth):
     from datetime import timedelta
@@ -195,7 +173,6 @@ def test_cancel_past_deadline_blocked(client, fake_account, fake_event, auth):
     r = client.delete(f"/v1/transactions/{tx_id}", headers=auth("u-1"))
     assert r.status_code == 409
     assert r.json()["error"]["code"] == "PAST_CANCELLATION_DEADLINE"
-
 
 def test_cancel_then_reregister_allowed(client, fake_account, fake_event, auth):
     from datetime import timedelta

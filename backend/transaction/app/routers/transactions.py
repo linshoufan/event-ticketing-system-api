@@ -36,12 +36,8 @@ from app.services import transaction_service
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-
-# ---------------------------------------------------------------------------
 # 內部 helper：把單筆 Transaction 轉成 api-spec 的清單項目（含活動資訊）
-# ---------------------------------------------------------------------------
 def _enrich_with_event(tx: Transaction, event_client: EventClient) -> dict:
-    """補上 eventName / eventStartTime；活動查不到時以 null 帶過，不讓整批失敗。"""
     event_name = None
     event_start = None
     try:
@@ -65,10 +61,7 @@ def _enrich_with_event(tx: Transaction, event_client: EventClient) -> dict:
         "ticketId": tx.ticket_id,
     }
 
-
-# ---------------------------------------------------------------------------
 # GET /transactions — 查自己的報名紀錄
-# ---------------------------------------------------------------------------
 @router.get("/transactions", response_model=dict)
 def list_my_transactions(
     page: int = Query(1, ge=1),
@@ -88,10 +81,7 @@ def list_my_transactions(
     data = [_enrich_with_event(tx, event_client) for tx in items]
     return paginated(data=data, page=page, limit=limit, total=total)
 
-
-# ---------------------------------------------------------------------------
-# GET /transactions/{id} — 查單筆（本人或 welfare_member）
-# ---------------------------------------------------------------------------
+# GET /transactions/{id} — 查單筆
 @router.get("/transactions/{transaction_id}", response_model=dict)
 def get_transaction(
     transaction_id: str = Path(...),
@@ -104,10 +94,7 @@ def get_transaction(
     )
     return success(_enrich_with_event(tx, event_client))
 
-
-# ---------------------------------------------------------------------------
 # POST /transactions — 報名
-# ---------------------------------------------------------------------------
 @router.post("/transactions", response_model=dict, status_code=201)
 def create_transaction(
     body: RegistrationCreateRequest,
@@ -129,15 +116,15 @@ def create_transaction(
         ticket_client=ticket_client,
     )
 
-    # saveAutofill：api-spec 要求把這次填的偏好存回帳戶當預設。
-    # Account Service 目前沒有對應的 internal endpoint，故先記 log，不阻擋報名。
-    # 待 Account 端提供 PATCH internal autofill endpoint 後再接上。
     if body.saveAutofill:
-        logger.info(
-            "saveAutofill requested by user=%s (diet=%s, driving=%s) — "
-            "skipped: Account Service internal autofill endpoint not available yet",
-            current_user.user_id, body.dietType, body.selfDriving,
-        )
+        try:
+            account_client.update_autofill(
+                current_user.user_id,
+                diet_type=body.dietType,
+                self_driving=body.selfDriving,
+            )
+        except Exception as exc:
+            logger.warning("saveAutofill failed for user=%s: %s", current_user.user_id, exc)
 
     return success({
         "transactionId": tx.transaction_id,
@@ -147,10 +134,7 @@ def create_transaction(
         "registeredAt": tx.registered_at.isoformat(),
     })
 
-
-# ---------------------------------------------------------------------------
 # PATCH /transactions/{id} — 修改報名細節
-# ---------------------------------------------------------------------------
 @router.patch("/transactions/{transaction_id}", response_model=dict)
 def update_transaction(
     body: RegistrationUpdateRequest,
@@ -170,10 +154,7 @@ def update_transaction(
     )
     return success({"updated": True, "updatedAt": tx.updated_at.isoformat()})
 
-
-# ---------------------------------------------------------------------------
 # DELETE /transactions/{id} — 取消報名（含自動補位）
-# ---------------------------------------------------------------------------
 @router.delete("/transactions/{transaction_id}", response_model=dict)
 def cancel_transaction(
     transaction_id: str = Path(...),
@@ -190,7 +171,7 @@ def cancel_transaction(
         ticket_client=ticket_client,
     )
     data = {"cancelled": True}
-    # 額外回傳補位資訊（api-spec 沒要求，但對前端有用，放在 data 內不破壞契約）
+    # 額外回傳補位資訊
     if promoted is not None:
         data["promoted"] = {
             "transactionId": promoted.transaction_id,

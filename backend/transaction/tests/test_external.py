@@ -1,6 +1,6 @@
 """跨服務 client 的單元測試。
 
-用 httpx.MockTransport 模擬對方服務的 HTTP 回應，不需要實際跑 Account / Event Service。
+用 httpx.MockTransport 模擬對方服務的 HTTP 回應，不需要實際跑 Service。
 """
 from datetime import datetime, timezone
 
@@ -16,11 +16,7 @@ from app.core.external import (
     EVENT_STATUS_REGISTERING,
 )
 
-
-# ============================================================================
 # AccountClient
-# ============================================================================
-
 def _make_account_client(handler) -> AccountClient:
     """用 mock transport 建立 AccountClient。"""
     client = AccountClient(base_url="http://test", internal_key="test-key")
@@ -31,7 +27,6 @@ def _make_account_client(handler) -> AccountClient:
     )
     return client
 
-
 def test_account_client_get_registration_profile_active():
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.headers["X-Internal-Key"] == "test-key"
@@ -39,6 +34,7 @@ def test_account_client_get_registration_profile_active():
         return httpx.Response(200, json={
             "data": {
                 "userId": "u-1",
+                "username": "user111",
                 "role": "employee",
                 "registrationStatus": "active",
                 "unlockAt": None,
@@ -51,13 +47,13 @@ def test_account_client_get_registration_profile_active():
     profile = client.get_registration_profile("u-1")
 
     assert profile.user_id == "u-1"
+    assert profile.username == "user111" 
     assert profile.role == "employee"
     assert profile.registration_status == "active"
     assert profile.is_locked is False
     assert profile.autofill_diet_type == "veg"
     assert profile.autofill_self_driving is True
     assert profile.preferences == ["sport"]
-
 
 def test_account_client_get_registration_profile_locked():
     def handler(request: httpx.Request) -> httpx.Response:
@@ -75,9 +71,9 @@ def test_account_client_get_registration_profile_locked():
     client = _make_account_client(handler)
     profile = client.get_registration_profile("u-2")
 
+    assert profile.username is None
     assert profile.is_locked is True
     assert profile.unlock_at == datetime(2026, 6, 20, 8, 0, tzinfo=timezone.utc)
-
 
 def test_account_client_404_raises_not_found():
     def handler(request: httpx.Request) -> httpx.Response:
@@ -95,7 +91,6 @@ def test_account_client_5xx_raises_unavailable():
     client = _make_account_client(handler)
     with pytest.raises(ExternalUnavailableError):
         client.get_registration_profile("u-1")
-
 
 def test_account_client_caches_profile():
     call_count = {"n": 0}
@@ -116,7 +111,6 @@ def test_account_client_caches_profile():
     client.get_registration_profile("u-1")
     client.get_registration_profile("u-1")
     assert call_count["n"] == 1, "second call should be served from cache"
-
 
 def test_account_client_punish_invalidates_cache():
     """punish_user 後再 get_registration_profile，必須重新打 API（不能拿到舊的 active）。"""
@@ -151,10 +145,8 @@ def test_account_client_punish_invalidates_cache():
     assert methods == ["GET", "POST", "GET"]
 
 
-# ============================================================================
-# EventClient
-# ============================================================================
 
+# EventClient
 def _make_event_client(handler) -> EventClient:
     client = EventClient(base_url="http://test")
     client._client = httpx.Client(base_url="http://test", transport=httpx.MockTransport(handler))
@@ -191,7 +183,6 @@ def test_event_client_get_event_with_limit():
     assert event.guest_allowed is True
     assert event.cancellation_deadline == datetime(2026, 6, 1, tzinfo=timezone.utc)
 
-
 def test_event_client_unlimited_event():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={
@@ -211,7 +202,6 @@ def test_event_client_unlimited_event():
     event = client.get_event("evt-2")
     assert event.has_capacity_limit is False
     assert event.ticket_limit is None
-
 
 def test_event_client_is_registration_open():
     def handler(request: httpx.Request) -> httpx.Response:
@@ -233,7 +223,6 @@ def test_event_client_is_registration_open():
     assert event.is_registration_open(now=datetime(2026, 5, 15, tzinfo=timezone.utc)) is True
     assert event.is_registration_open(now=datetime(2026, 7, 1, tzinfo=timezone.utc)) is False
 
-
 def test_event_client_404():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(404, json={"error": {"code": "EVENT_NOT_FOUND", "message": "..."}})
@@ -243,10 +232,7 @@ def test_event_client_404():
         client.get_event("nope")
 
 
-# ============================================================================
 # TicketClient
-# ============================================================================
-
 def test_ticket_client_mock_mode_issue_returns_uuid(monkeypatch):
     """ticket_service_enabled=False 時，issue_ticket 不打 HTTP，直接給 mock id。"""
     monkeypatch.setattr("app.core.external.settings.ticket_service_enabled", False)
@@ -254,19 +240,16 @@ def test_ticket_client_mock_mode_issue_returns_uuid(monkeypatch):
     ticket_id = client.issue_ticket(user_id="u-1", event_id="evt-1", transaction_id="tx-1")
     assert ticket_id.startswith("mock-")
 
-
 def test_ticket_client_mock_mode_void_is_noop(monkeypatch):
     monkeypatch.setattr("app.core.external.settings.ticket_service_enabled", False)
     client = TicketClient()
     # 應該完全不丟錯
     client.void_ticket("any-id")
 
-
 def test_ticket_client_mock_mode_list_unused_returns_empty(monkeypatch):
     monkeypatch.setattr("app.core.external.settings.ticket_service_enabled", False)
     client = TicketClient()
     assert client.list_unused_tickets("evt-1") == []
-
 
 def test_ticket_client_real_mode_issue_ticket(monkeypatch):
     """模擬 ticket service enabled 時打真實 HTTP。"""
@@ -285,7 +268,6 @@ def test_ticket_client_real_mode_issue_ticket(monkeypatch):
     )
     ticket_id = client.issue_ticket(user_id="u-1", event_id="evt-1", transaction_id="tx-1")
     assert ticket_id == "real-ticket-xyz"
-
 
 def test_ticket_client_void_404_is_treated_as_success(monkeypatch):
     """void_ticket 收到 404 應該視為成功（idempotent）。"""

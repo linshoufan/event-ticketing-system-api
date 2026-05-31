@@ -6,8 +6,6 @@
 2. 跨服務錯誤一律轉成 ExternalServiceError 子類別，service 層 catch 後再決定要不要
    轉成對使用者的 HTTPException（避免把對方服務的錯誤訊息直接吐給使用者）。
 3. 短期 TTL cache 減少重複呼叫（會在 service 層 invalidate）。
-4. TicketClient 支援 mock 模式（settings.ticket_service_enabled=False 時走 mock），
-   等真實 Ticket Service 整合後改 True 即可，service 層程式碼一行都不用改。
 """
 from __future__ import annotations
 
@@ -24,11 +22,7 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-
-# ============================================================================
 # Exceptions
-# ============================================================================
-
 class ExternalServiceError(Exception):
     """跨服務呼叫的 base exception。"""
     def __init__(self, service: str, message: str, status_code: int | None = None):
@@ -47,10 +41,7 @@ class ExternalUnavailableError(ExternalServiceError):
     """對方服務 5xx 或無法連線。"""
     pass
 
-
-# ============================================================================
 # Event Status（對齊 Event Service 的 enum）
-# ============================================================================
 # Event Service 的 status 是 int：
 #   0 = NOT_OPEN (報名未開放)
 #   1 = REGISTERING (報名中)
@@ -63,11 +54,7 @@ EVENT_STATUS_WAITLIST = 2
 EVENT_STATUS_CLOSED = 3
 EVENT_STATUS_ENDED = 4
 
-
-# ============================================================================
 # Result dataclasses（給 service 層用，避免直接傳 dict）
-# ============================================================================
-
 @dataclass
 class RegistrationProfile:
     """Account Service 回傳的使用者報名資料。"""
@@ -78,11 +65,11 @@ class RegistrationProfile:
     autofill_diet_type: str | None
     autofill_self_driving: bool | None
     preferences: list[str]
+    username: str | None = None
 
     @property
     def is_locked(self) -> bool:
         return self.registration_status == "locked"
-
 
 @dataclass
 class EventInfo:
@@ -109,15 +96,9 @@ class EventInfo:
         now = now or datetime.now(timezone.utc)
         return self.registration_start <= now <= self.registration_end
 
-
-# ============================================================================
-# 輔助函式
-# ============================================================================
-
 def _parse_iso(value: str | None) -> datetime | None:
     if value is None:
         return None
-    # Python 3.11+ 的 fromisoformat 支援 ISO 8601 with timezone
     dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
@@ -137,11 +118,7 @@ def _classify_http_error(service: str, exc: httpx.HTTPStatusError) -> ExternalSe
         return ExternalUnavailableError(service, message, status_code=status)
     return ExternalServiceError(service, message, status_code=status)
 
-
-# ============================================================================
 # AccountClient
-# ============================================================================
-
 class AccountClient:
     """呼叫 Account Service 的 internal API。"""
 
@@ -151,10 +128,28 @@ class AccountClient:
             timeout=timeout,
             headers={"X-Internal-Key": internal_key or settings.internal_api_key},
         )
-        self._cache = TTLCache(default_ttl=15.0)  # registration profile 15 秒快取夠了
+        self._cache = TTLCache(default_ttl=15.0)
 
     def close(self) -> None:
         self._client.close()
+
+    def update_autofill(
+        self,
+        user_id: str,
+        diet_type: str | None,
+        self_driving: bool | None,
+    ) -> None:
+        """PATCH /v1/internal/users/{user_id}/autofill"""
+        try:
+            response = self._client.patch(
+                f"/v1/internal/users/{user_id}/autofill",
+                json={"dietType": diet_type, "selfDriving": self_driving},
+            )
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise _classify_http_error("AccountService", exc) from exc
+        except httpx.RequestError as exc:
+            raise ExternalUnavailableError("AccountService", f"network error: {exc}") from exc
 
     def get_registration_profile(self, user_id: str) -> RegistrationProfile:
         """GET /v1/internal/users/{user_id}/registration-profile"""
@@ -175,6 +170,7 @@ class AccountClient:
         autofill = data.get("autofill", {}) or {}
         profile = RegistrationProfile(
             user_id=data["userId"],
+            username=data.get("username"),
             role=data["role"],
             registration_status=data["registrationStatus"],
             unlock_at=_parse_iso(data.get("unlockAt")),
@@ -205,11 +201,7 @@ class AccountClient:
         self.invalidate_profile_cache(user_id)
         return response.json().get("data", {})
 
-
-# ============================================================================
 # EventClient
-# ============================================================================
-
 class EventClient:
     """呼叫 Event Service 的公開 API（無需 internal key）。"""
 
@@ -259,20 +251,8 @@ class EventClient:
     def invalidate_event_cache(self, event_id: str) -> None:
         self._cache.invalidate(f"event:{event_id}")
 
-
-# ============================================================================
 # TicketClient
-# ============================================================================
-
 class TicketClient:
-    """呼叫 Ticket Service 的 internal API。
-
-    ⚠️ 目前 Ticket Service 尚未在 dev branch 整合，所以這個 client 預設走 mock 模式：
-    - mock 模式：issue_ticket 直接產生 UUID 當 ticket_id 回傳，不打 HTTP
-    - 真實模式：依 docs/internal-api-spec.md 中「Ticket Service」段落實作
-
-    切換方式：設定 TICKET_SERVICE_ENABLED=true（settings.ticket_service_enabled）
-    """
 
     def __init__(self, base_url: str | None = None, internal_key: str | None = None, timeout: float = 5.0):
         self._enabled = settings.ticket_service_enabled
@@ -360,17 +340,12 @@ class TicketClient:
 
         return response.json().get("data", {}).get("ticketIds", [])
 
-
-# ============================================================================
 # Module-level singletons + FastAPI dependencies
-# ============================================================================
 # 每個 client 都是 thread-safe 的 httpx.Client wrapper，pod 內共用一個 instance
 # 就好；FastAPI 用 Depends 注入，方便測試時 monkeypatch。
-
 _account_client: AccountClient | None = None
 _event_client: EventClient | None = None
 _ticket_client: TicketClient | None = None
-
 
 def get_account_client() -> AccountClient:
     global _account_client
@@ -378,13 +353,11 @@ def get_account_client() -> AccountClient:
         _account_client = AccountClient()
     return _account_client
 
-
 def get_event_client() -> EventClient:
     global _event_client
     if _event_client is None:
         _event_client = EventClient()
     return _event_client
-
 
 def get_ticket_client() -> TicketClient:
     global _ticket_client

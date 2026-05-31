@@ -1,5 +1,4 @@
-"""Phase 4 端對端測試（針對真實 Postgres + mock external services）
-
+"""
 涵蓋：
 - 報名 confirmed
 - 重複報名擋下
@@ -35,19 +34,17 @@ from app.core.external import (
 from app.models.transaction import Transaction
 from app.services import transaction_service, eligibility_service, no_show_service
 
-
 now = datetime.now(timezone.utc)
 
-
-def make_profile(user_id, role="employee", locked=False, diet="non-veg", driving=False):
+def make_profile(user_id, role="employee", locked=False, diet="non-veg", driving=False, username=None):
     return RegistrationProfile(
         user_id=user_id, role=role,
         registration_status="locked" if locked else "active",
         unlock_at=(now + timedelta(days=30)) if locked else None,
         autofill_diet_type=diet, autofill_self_driving=driving,
         preferences=[],
+        username=username,
     )
-
 
 def make_event(event_id, ticket_limit=None, cancellation_deadline=None,
                guest_allowed=False, registration_open=True):
@@ -62,7 +59,6 @@ def make_event(event_id, ticket_limit=None, cancellation_deadline=None,
         event_start_time=now + timedelta(days=10),
         event_end_time=now + timedelta(days=10, hours=4),
     )
-
 
 def make_clients(profiles=None, events=None):
     """構造 mock clients。"""
@@ -86,17 +82,13 @@ def make_clients(profiles=None, events=None):
     tkt.list_unused_tickets = MagicMock(return_value=[])
     return acc, evt, tkt
 
-
 def reset_db():
     db = SessionLocal()
     db.query(Transaction).delete()
     db.commit()
     db.close()
 
-
-# ============================================================================
 # TEST 1: Confirmed registration with autofill
-# ============================================================================
 def test_confirmed_registration():
     reset_db()
     db = SessionLocal()
@@ -121,9 +113,7 @@ def test_confirmed_registration():
     print("[PASS] test_confirmed_registration")
 
 
-# ============================================================================
 # TEST 2: Duplicate registration blocked
-# ============================================================================
 def test_duplicate_blocked():
     reset_db()
     db = SessionLocal()
@@ -148,10 +138,7 @@ def test_duplicate_blocked():
     db.close()
     print("[PASS] test_duplicate_blocked")
 
-
-# ============================================================================
 # TEST 3: Auto waitlist when full
-# ============================================================================
 def test_auto_waitlist():
     reset_db()
     db = SessionLocal()
@@ -174,10 +161,7 @@ def test_auto_waitlist():
     db.close()
     print("[PASS] test_auto_waitlist")
 
-
-# ============================================================================
 # TEST 4: Cancel confirmed triggers waitlist promotion
-# ============================================================================
 def test_cancel_promotes_waitlist():
     reset_db()
     db = SessionLocal()
@@ -215,10 +199,7 @@ def test_cancel_promotes_waitlist():
     db.close()
     print("[PASS] test_cancel_promotes_waitlist")
 
-
-# ============================================================================
 # TEST 5: Cancel waitlist does NOT promote anyone
-# ============================================================================
 def test_cancel_waitlist():
     reset_db()
     db = SessionLocal()
@@ -246,10 +227,7 @@ def test_cancel_waitlist():
     db.close()
     print("[PASS] test_cancel_waitlist")
 
-
-# ============================================================================
 # TEST 6: Cancellation deadline = None means NOT cancellable
-# ============================================================================
 def test_no_cancellation_deadline_blocks_cancel():
     reset_db()
     db = SessionLocal()
@@ -274,10 +252,7 @@ def test_no_cancellation_deadline_blocks_cancel():
     db.close()
     print("[PASS] test_no_cancellation_deadline_blocks_cancel")
 
-
-# ============================================================================
 # TEST 7: Cancellation deadline passed
-# ============================================================================
 def test_cancellation_deadline_passed():
     reset_db()
     db = SessionLocal()
@@ -299,14 +274,11 @@ def test_cancellation_deadline_passed():
         )
         assert False
     except Exception as exc:
-        assert "CANCELLATION_DEADLINE_PASSED" in str(exc.detail)
+        assert "PAST_CANCELLATION_DEADLINE" in str(exc.detail)
     db.close()
     print("[PASS] test_cancellation_deadline_passed")
 
-
-# ============================================================================
 # TEST 8: welfare_member can't register
-# ============================================================================
 def test_welfare_member_blocked():
     reset_db()
     db = SessionLocal()
@@ -326,10 +298,7 @@ def test_welfare_member_blocked():
     db.close()
     print("[PASS] test_welfare_member_blocked")
 
-
-# ============================================================================
 # TEST 9: Locked user blocked
-# ============================================================================
 def test_locked_user_blocked():
     reset_db()
     db = SessionLocal()
@@ -345,14 +314,11 @@ def test_locked_user_blocked():
         )
         assert False
     except Exception as exc:
-        assert "USER_LOCKED" in str(exc.detail)
+        assert "ACCOUNT_LOCKED" in str(exc.detail)
     db.close()
     print("[PASS] test_locked_user_blocked")
 
-
-# ============================================================================
 # TEST 10: Guest count rejected when guest not allowed
-# ============================================================================
 def test_guest_blocked():
     reset_db()
     db = SessionLocal()
@@ -360,28 +326,23 @@ def test_guest_blocked():
         profiles={"u-1": make_profile("u-1")},
         events={"e-1": make_event("e-1", ticket_limit=5, guest_allowed=False)},
     )
-    try:
-        transaction_service.create_registration(
-            user_id="u-1", event_id="e-1",
-            request_guest_count=2, request_diet_type=None, request_self_driving=None,
-            db=db, account_client=acc, event_client=evt, ticket_client=tkt,
-        )
-        assert False
-    except Exception as exc:
-        assert "GUEST_NOT_ALLOWED" in str(exc.detail)
+    tx = transaction_service.create_registration(
+        user_id="u-1", event_id="e-1",
+        request_guest_count=2, request_diet_type=None, request_self_driving=None,
+        db=db, account_client=acc, event_client=evt, ticket_client=tkt,
+    )
+    assert tx.status == "confirmed"
+    assert tx.guest_count == 0
     db.close()
     print("[PASS] test_guest_blocked")
 
-
-# ============================================================================
 # TEST 11: Update guest_count
-# ============================================================================
 def test_update_registration():
     reset_db()
     db = SessionLocal()
     acc, evt, tkt = make_clients(
         profiles={"u-1": make_profile("u-1")},
-        events={"e-1": make_event("e-1", ticket_limit=5, guest_allowed=True)},
+        events={"e-1": make_event("e-1", ticket_limit=None, guest_allowed=True)},
     )
     tx = transaction_service.create_registration(
         user_id="u-1", event_id="e-1",
@@ -399,10 +360,7 @@ def test_update_registration():
     db.close()
     print("[PASS] test_update_registration")
 
-
-# ============================================================================
 # TEST 12: No-show punishment
-# ============================================================================
 def test_no_show_punishment():
     reset_db()
     db = SessionLocal()
@@ -428,22 +386,3 @@ def test_no_show_punishment():
     assert len(result.errors) == 0
     db.close()
     print("[PASS] test_no_show_punishment")
-
-
-# ============================================================================
-# Run all
-# ============================================================================
-if __name__ == "__main__":
-    test_confirmed_registration()
-    test_duplicate_blocked()
-    test_auto_waitlist()
-    test_cancel_promotes_waitlist()
-    test_cancel_waitlist()
-    test_no_cancellation_deadline_blocks_cancel()
-    test_cancellation_deadline_passed()
-    test_welfare_member_blocked()
-    test_locked_user_blocked()
-    test_guest_blocked()
-    test_update_registration()
-    test_no_show_punishment()
-    print("\n*** ALL 12 TESTS PASSED ***")

@@ -20,7 +20,6 @@ VALID_DIET_TYPES = ("veg", "non-veg", "none")
 # 「仍佔用名額」的狀態 — service 層判斷重複報名、釋出名額時都會用到
 ACTIVE_STATUSES = ("confirmed", "waitlist")
 
-
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -29,10 +28,9 @@ class Transaction(Base):
     """報名紀錄。
 
     一個 row = 一次報名動作。
-    取消報名不會刪 row，而是把 status 改成 'cancelled'，保留審計軌跡。
+    取消報名不會刪 row，而是把 status 改成 'cancelled'。
     No-Show 偵測也會掃這張表（看活動結束時 ticket 仍未 check-in 的 confirmed 報名）。
     """
-
     __tablename__ = "transactions"
     __table_args__ = (
         # DB 層守住 status 與 diet_type 的可選值
@@ -46,7 +44,7 @@ class Transaction(Base):
         ),
         CheckConstraint("guest_count >= 0", name="check_transaction_guest_count_non_negative"),
 
-        # ⚠️ 關鍵約束：同一個 user 對同一個 event 不能有 2 筆 active 紀錄
+        # 同一個 user 對同一個 event 不能有 2 筆 active 紀錄
         # 但允許重複報名再取消再報（cancelled 不在 partial index 範圍內）
         Index(
             "uq_active_registration",
@@ -83,7 +81,6 @@ class Transaction(Base):
     # 只有 confirmed 才會有；waitlist 補位升為 confirmed 時才會填入
     ticket_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
 
-    # === 時間戳 ===
     registered_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )

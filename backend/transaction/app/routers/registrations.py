@@ -4,11 +4,9 @@ Roles: welfare_member、hr
 回應格式對齊 docs/api-spec.txt：
   { "data": { "summary": {...}, "registrations": [...] }, "pagination": {...} }
 
-備註（username 缺口）：
-  api-spec 的 registrations 項目含 username，但 Account Service 目前的 internal
-  endpoint（registration-profile）不回傳 username。在 Account 端提供 username 查詢
-  （或在 registration-profile 加上 username 欄位）之前，這裡先回傳 username=null。
-  屆時只要在 _to_registration_item 補上查詢即可，其餘不需更動。
+username 補充說明：
+  當 Account Service 的 registration-profile 回傳 username 後，
+  _to_registration_item 會自動帶入；查不到時以 null 帶過，不阻斷整批。
 """
 from __future__ import annotations
 
@@ -17,18 +15,25 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentUser, role_required
+from app.core.external import AccountClient, ExternalServiceError, get_account_client
 from app.core.response import success
 from app.models.transaction import Transaction
 from app.services import transaction_service
 
 router = APIRouter()
 
+def _to_registration_item(tx: Transaction, account_client: AccountClient) -> dict:
+    username = None
+    try:
+        profile = account_client.get_registration_profile(tx.user_id)
+        username = profile.username
+    except ExternalServiceError:
+        pass
 
-def _to_registration_item(tx: Transaction) -> dict:
     return {
         "transactionId": tx.transaction_id,
         "userId": tx.user_id,
-        "username": None,  # 見檔頭備註：待 Account Service 提供 username 查詢
+        "username": username,
         "status": tx.status,
         "waitlistNumber": tx.waitlist_number,
         "guestCount": tx.guest_count,
@@ -36,7 +41,6 @@ def _to_registration_item(tx: Transaction) -> dict:
         "selfDriving": tx.self_driving,
         "registeredAt": tx.registered_at.isoformat(),
     }
-
 
 @router.get("/events/{event_id}/registrations", response_model=dict)
 def list_event_registrations(
@@ -46,6 +50,7 @@ def list_event_registrations(
     status: str | None = Query(None, pattern="^(confirmed|waitlist|cancelled)$"),
     current_user: CurrentUser = Depends(role_required("welfare_member", "hr")),
     db: Session = Depends(get_db),
+    account_client: AccountClient = Depends(get_account_client),
 ):
     items, total = transaction_service.list_event_registrations(
         event_id=event_id,
@@ -59,7 +64,7 @@ def list_event_registrations(
     return {
         "data": {
             "summary": summary,
-            "registrations": [_to_registration_item(tx) for tx in items],
+            "registrations": [_to_registration_item(tx, account_client) for tx in items],
         },
         "pagination": {"page": page, "limit": limit, "total": total},
     }

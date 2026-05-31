@@ -10,7 +10,7 @@
 - 不在 lock 下執行，因為跑的時點是「活動結束後」，沒有併發報名要保護
 - 失敗的個別 user 不會中斷整批，會記在回傳的 errors 裡
 
-Phase 4 只提供 service function，不接 scheduler。
+只提供 service function，不接 scheduler。
 未來的觸發方式可能是：
   - cron job：每天掃過去 24 小時結束的活動
   - 活動結束後 welfare_member 手動觸發
