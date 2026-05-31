@@ -25,7 +25,6 @@ from app.core.external import (
 )
 from app.models.transaction import ACTIVE_STATUSES, Transaction
 
-
 # 所有可能的 reasonCode（供前端 i18n、測試對齊）
 REASON_OK = None
 REASON_USER_NOT_FOUND = "USER_NOT_FOUND"
@@ -84,7 +83,7 @@ def check_eligibility(
         )
 
     if profile.role != "employee":
-        # 福委會、HR 不參與報名（依需求書「福委會成員預設不參與活動」）
+        # 福委會、HR 不參與報名
         return EligibilityResult(
             eligible=False,
             reason_code=REASON_FORBIDDEN_ROLE,
@@ -183,7 +182,7 @@ def check_eligibility(
         )
 
     # === 4. 容量檢查（決定 will_be_waitlist）===
-    # 注意：這只是「預估」，正式報名 flow 內會在 advisory lock 下再 count 一次才算數
+    # 只是預估，正式報名 flow 內會在 advisory lock 下再 count 一次才算數
     will_be_waitlist = False
     remaining_tickets: int | None = None
     if event.has_capacity_limit:

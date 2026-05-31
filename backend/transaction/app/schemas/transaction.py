@@ -12,18 +12,13 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.transaction import Transaction
 
-
-# ============================================================================
 # Request
-# ============================================================================
-
 class RegistrationCreateRequest(BaseModel):
     """POST /v1/transactions 的 body。
 
     eventId 必填；其他三個欄位若不給，由 service 層用 Account Service 的 autofill 補上。
-    saveAutofill=True 表示希望把這次填的偏好存回 Account Service 當預設值
-    （目前 Account Service 尚未提供對應 internal endpoint，router 會先忽略此 flag，
-    詳見 router 內註解與 Phase 5 說明）。
+    saveAutofill=True 表示希望把這次填的偏好存回 Account Service 當預設值，
+    下次報名時會自動帶入。更新失敗不阻斷報名流程（僅記 warning log）。
     """
     model_config = ConfigDict(extra="forbid")
 
@@ -33,7 +28,6 @@ class RegistrationCreateRequest(BaseModel):
     selfDriving: bool | None = None
     saveAutofill: bool = False
 
-
 class RegistrationUpdateRequest(BaseModel):
     """PATCH /v1/transactions/{id} 的 body。所有欄位都是 optional，只更新有給的。"""
     model_config = ConfigDict(extra="forbid")
@@ -42,11 +36,7 @@ class RegistrationUpdateRequest(BaseModel):
     dietType: Literal["veg", "non-veg", "none"] | None = None
     selfDriving: bool | None = None
 
-
-# ============================================================================
 # Response
-# ============================================================================
-
 class RegistrationResponse(BaseModel):
     """單筆報名紀錄的對外表示。"""
     transactionId: str
@@ -79,11 +69,9 @@ class RegistrationResponse(BaseModel):
             updatedAt=tx.updated_at,
         )
 
-
 class AutofillSchema(BaseModel):
     dietType: str | None
     selfDriving: bool | None
-
 
 class EligibilityResponse(BaseModel):
     """GET /v1/events/{eventId}/eligibility 的回應。

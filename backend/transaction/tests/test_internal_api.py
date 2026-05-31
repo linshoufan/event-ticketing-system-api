@@ -20,7 +20,6 @@ def test_punish_no_shows_with_key(client, fake_account, fake_event, fake_ticket,
     assert sorted(d["punishedUserIds"]) == ["u-0", "u-1"]
     assert sorted(fake_account.punished) == ["u-0", "u-1"]
 
-
 def test_punish_no_shows_empty(client, fake_account, fake_event, fake_ticket):
     fake_event.set_event("e-1", ticket_limit=5)
     fake_ticket.unused = []
@@ -31,14 +30,12 @@ def test_punish_no_shows_empty(client, fake_account, fake_event, fake_ticket):
     assert r.status_code == 200
     assert r.json()["data"]["punishedCount"] == 0
 
-
 def test_punish_no_shows_wrong_key(client):
     r = client.post(
         "/v1/internal/events/e-1/punish-no-shows",
         headers={"X-Internal-Key": "wrong-key"},
     )
     assert r.status_code == 401
-
 
 def test_punish_no_shows_missing_key(client):
     r = client.post("/v1/internal/events/e-1/punish-no-shows")

@@ -49,7 +49,7 @@ def test_concurrent_registration_no_oversell(db):
             )
             with results_lock:
                 results.append(tx.status)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             with results_lock:
                 results.append(f"error:{exc}")
         finally:

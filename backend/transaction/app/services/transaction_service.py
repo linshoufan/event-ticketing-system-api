@@ -4,7 +4,7 @@
 1. 併發控制用 PostgreSQL advisory lock，per-event scope
    → 不同活動互不阻塞，同活動的 capacity 決策序列化
 2. Ticket Service 呼叫在 DB commit 之後（避免 distributed transaction）
-   → 接受「commit 成功但 ticket 配發失敗」的小機率風險（mock 模式不會發生）
+   → 接受「commit 成功但 ticket 配發失敗」的小機率風險
 3. Cancel confirmed 時自動補位 waitlist（不開獨立 endpoint）
 """
 from __future__ import annotations
@@ -32,11 +32,7 @@ from app.services.eligibility_service import EligibilityResult
 
 logger = logging.getLogger(__name__)
 
-
-# ============================================================================
 # 內部 helpers
-# ============================================================================
-
 def _new_transaction_id() -> str:
     return str(uuid.uuid4())
 
@@ -62,7 +58,6 @@ def _count_confirmed(db: Session, event_id: str) -> int:
         or 0
     )
 
-
 def _next_waitlist_number(db: Session, event_id: str) -> int:
     """這個 event 目前最大的 waitlist_number + 1；若無候補則 1。"""
     current_max = (
@@ -78,7 +73,6 @@ def _http_error(status_code: int, code: str, message: str) -> HTTPException:
         status_code=status_code,
         detail={"code": code, "message": message},
     )
-
 
 def _ensure_owner_or_staff(tx: Transaction, current_user: CurrentUser) -> None:
     """報名紀錄只有本人 / welfare_member 能操作。"""
@@ -112,12 +106,11 @@ def _apply_autofill(
     driving = request_self_driving if request_self_driving is not None else profile_self_driving
 
     if event_has_capacity_limit:
-        guest = 0  # 限名額活動：固定 0，忽略使用者輸入
+        guest = 0  # 限名額活動固定 0
     else:
         guest = request_guest_count if request_guest_count is not None else 0
 
     return guest, diet, driving
-
 
 def _raise_if_ineligible(elig: EligibilityResult) -> None:
     """eligibility 不通過時轉成符合 api-spec.txt 的 HTTPException。"""
@@ -147,11 +140,7 @@ def _raise_if_ineligible(elig: EligibilityResult) -> None:
         elig.reason_message or "Not eligible to register",
     )
 
-
-# ============================================================================
 # Create registration（報名）
-# ============================================================================
-
 def create_registration(
     *,
     user_id: str,
@@ -236,7 +225,6 @@ def create_registration(
 
     return tx
 
-
 def _issue_and_attach_ticket(
     *,
     tx: Transaction,
@@ -250,7 +238,7 @@ def _issue_and_attach_ticket(
             event_id=tx.event_id,
             transaction_id=tx.transaction_id,
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error(
             "Failed to issue ticket for tx=%s user=%s event=%s: %s",
             tx.transaction_id, tx.user_id, tx.event_id, exc,
@@ -262,11 +250,7 @@ def _issue_and_attach_ticket(
     db.commit()
     db.refresh(tx)
 
-
-# ============================================================================
 # Cancel registration（取消，含補位）
-# ============================================================================
-
 def cancel_registration(
     *,
     transaction_id: str,
@@ -347,7 +331,6 @@ def cancel_registration(
 
     return tx, promoted_tx
 
-
 def _promote_next_waitlist(db: Session, event_id: str) -> Transaction | None:
     """找出 waitlist_number 最小的 waitlist transaction，升為 confirmed。
     回傳該 transaction（已修改但尚未發 ticket），或 None。
@@ -369,11 +352,7 @@ def _promote_next_waitlist(db: Session, event_id: str) -> Transaction | None:
     next_tx.updated_at = utcnow()
     return next_tx
 
-
-# ============================================================================
 # Update registration（修改 guest_count 等）
-# ============================================================================
-
 def update_registration(
     *,
     transaction_id: str,
@@ -408,7 +387,6 @@ def update_registration(
                     "GUEST_NOT_ALLOWED",
                     "Limited-capacity events do not allow guests",
                 )
-            # guest_count == 0 對限名額活動是 no-op，直接略過
         else:
             tx.guest_count = guest_count
     if diet_type is not None:
@@ -421,11 +399,7 @@ def update_registration(
     db.refresh(tx)
     return tx
 
-
-# ============================================================================
 # Query
-# ============================================================================
-
 def get_registration(
     *,
     transaction_id: str,
@@ -437,7 +411,6 @@ def get_registration(
         raise _http_error(status.HTTP_404_NOT_FOUND, "TRANSACTION_NOT_FOUND", "Registration not found")
     _ensure_owner_or_staff(tx, current_user)
     return tx
-
 
 def list_user_registrations(
     *,
@@ -477,7 +450,7 @@ def list_event_registrations(
     if status_filter is not None:
         query = query.filter(Transaction.status == status_filter)
     total = query.count()
-    # 自訂 status 順序（SQLAlchemy 2.0 的 case 寫法）
+    # 自訂 status 順序
     status_order = case(
         (Transaction.status == "confirmed", 0),
         (Transaction.status == "waitlist", 1),

@@ -9,14 +9,13 @@ from app.core.security import decode_access_token
 # tokenUrl 只是給 OpenAPI docs 用的，實際 token 由 Account Service 發
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/v1/auth/login")
 
-
 @dataclass
 class CurrentUser:
     """從 JWT payload 解出來的輕量使用者物件。
 
     注意：Transaction Service 沒有 users 表，所以這裡只放 token 裡有的欄位。
     如果業務邏輯需要 registrationStatus、autofill、preferences 等，
-    請改呼叫 AccountClient.get_registration_profile()（Phase 3 會建立）。
+    改呼叫 AccountClient.get_registration_profile()。
     """
     user_id: str
     role: str

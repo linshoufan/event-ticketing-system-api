@@ -19,6 +19,7 @@ def get_registration_profile(
     user = user_service.get_user_by_id(user_id=user_id, db=db)
     return success({
         "userId": user.user_id,
+        "username": user.username,
         "role": user.role,
         "registrationStatus": user.registration_status,
         "unlockAt": user.unlock_at.isoformat() if user.unlock_at else None,
@@ -42,3 +43,18 @@ def punish_user(
         "registrationStatus": user.registration_status,
         "unlockAt": user.unlock_at.isoformat() if user.unlock_at else None,
     })
+
+@router.patch("/internal/users/{user_id}/autofill", response_model=dict)
+def update_autofill(
+    user_id: str,
+    body: AutofillSchema,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_internal_key),
+):
+    user = user_service.update_user_autofill(
+        user_id=user_id,
+        diet_type=body.dietType,
+        self_driving=body.selfDriving,
+        db=db,
+    )
+    return success({"updated": True})

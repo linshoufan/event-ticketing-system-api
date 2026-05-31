@@ -21,7 +21,6 @@ from app.services import eligibility_service
 
 router = APIRouter()
 
-
 # 把內部 reason_code 對應成 api-spec 的 reason 字串
 _REASON_MAP = {
     "USER_LOCKED": "LOCKED",
@@ -29,7 +28,6 @@ _REASON_MAP = {
     "WILL_BE_WAITLIST": "NO_TICKETS",
     # 其他（draft / 未開放 / 截止 / 結束 / 角色）直接沿用內部 code
 }
-
 
 @router.get("/events/{event_id}/eligibility", response_model=dict)
 def check_eligibility(
