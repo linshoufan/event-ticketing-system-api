@@ -4,8 +4,9 @@ on:
   pull_request:
     branches: [dev, main]
     paths:
-      - "services/account/**"
+      - "backend/account/**"
       - "requirements.txt"
+      - ".github/workflows/ci-account.yml"
 
 jobs:
   lint-and-test:
@@ -28,6 +29,7 @@ jobs:
 
     env:
       ENV: local
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       ACCOUNT_DB_HOST: localhost
       ACCOUNT_DB_PORT: 5433
       ACCOUNT_DB_USER: test
@@ -53,13 +55,13 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Lint
-        working-directory: services/account
+        working-directory: backend/account
         run: ruff check app/ tests/
 
       - name: Run migrations
-        working-directory: services/account
+        working-directory: backend/account
         run: alembic upgrade head
 
       - name: Run tests
-        working-directory: services/account
+        working-directory: backend/account
         run: pytest tests/ -v --tb=short

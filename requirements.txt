@@ -26,6 +26,7 @@ pydantic-settings==2.14.1
 pydantic_core==2.46.4
 Pygments==2.20.0
 pytest==9.0.3
+pytest-cov==6.0.0
 python-dotenv==1.2.2
 python-jose==3.5.0
 rsa==4.9.1
@@ -37,3 +38,5 @@ typing-inspection==0.4.2
 typing_extensions==4.15.0
 tzlocal==5.3.1
 uvicorn==0.47.0
+PyYAML==6.0.2
+pytest-mock==3.14.0

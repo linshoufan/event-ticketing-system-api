@@ -1,0 +1,93 @@
+users:
+  - user_id: "1000001"
+    email: "employee_1000001@example.com"
+    role: "employee"
+  - user_id: "1000002"
+    email: "welfare_1000002@example.com"
+    role: "welfare_member"
+
+events:
+  - id: "ev_001"
+    name: "夏日烤肉趴"
+    location: "台北 101 頂樓"
+    category: "outdoor"
+    status: 1
+    lat: 25.0339
+    lon: 121.5644
+    radius: 500
+    time_offset: -1
+    duration: 4
+    registration_offset: -10
+  - id: "ev_002"
+    name: "部門聚餐"
+    location: "知名火鍋店"
+    category: "food"
+    status: 4
+    lat: 25.0478
+    lon: 121.5170
+    radius: 200
+    time_offset: -120
+    duration: 3
+    registration_offset: -15
+  - id: "ev_003"
+    name: "週五電影之夜"
+    location: "公司大會議室"
+    category: "culture"
+    status: 1
+    lat: 25.0339
+    lon: 121.5644
+    radius: 100
+    time_offset: 48
+    duration: 3
+    registration_offset: -5
+  - id: "ev_004"
+    name: "員工家庭日"
+    location: "新竹中央公園"
+    category: "family"
+    status: 1
+    lat: 24.8066
+    lon: 120.9687
+    radius: 300
+    time_offset: 168
+    duration: 8
+    registration_offset: -5
+    cancellation_offset: 48
+
+transactions:
+  - id: "tx_mock_001"
+    event_id: "ev_001"
+    user_id: "1000001"
+    status: "confirmed"
+    ticket_id: "tk_mock_001"
+  - id: "tx_mock_002"
+    event_id: "ev_002"
+    user_id: "1000001"
+    status: "confirmed"
+    ticket_id: "tk_mock_002"
+  - id: "tx_mock_003"
+    event_id: "ev_003"
+    user_id: "1000001"
+    status: "confirmed"
+    ticket_id: null
+  - id: "tx_mock_004"
+    event_id: "ev_004"
+    user_id: "1000001"
+    status: "confirmed"
+    ticket_id: "tk_mock_004"
+
+tickets:
+  - id: "tk_mock_001"
+    event_id: "ev_001"
+    user_id: "1000001"
+    transaction_id: "tx_mock_001"
+    status: "unused"
+  - id: "tk_mock_002"
+    event_id: "ev_002"
+    user_id: "1000001"
+    transaction_id: "tx_mock_002"
+    status: "used"
+  - id: "tk_mock_004"
+    event_id: "ev_004"
+    user_id: "1000001"
+    transaction_id: "tx_mock_004"
+    status: "unused"
