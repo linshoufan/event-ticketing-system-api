@@ -1,3 +1,7 @@
+from pathlib import Path
+
+import yaml
+
 from app.core.config import settings
 
 # 外部員工資料的結構
@@ -5,20 +9,30 @@ from app.core.config import settings
 
 # Mock 資料，開發階段使用
 # 正式環境換成真正連外部 DB 的邏輯
-_MOCK_EMPLOYEES = {
-    "1000001": {
-        "employee_id": "1000001",
-        "password": "password123",
-        "name": "Andy Hsu",
-        "email": "andy@company.com",
-    },
-    "1000002": {
-        "employee_id": "1000002",
-        "password": "password123",
-        "name": "Sarah Li",
-        "email": "sarah@company.com",
-    },
-}
+def _load_mock_employees() -> dict:
+    yaml_path = Path(__file__).resolve().parents[4] / "scripts" / "mock_data.yaml"
+    if not yaml_path.exists():
+        return {}
+
+    with yaml_path.open("r") as f:
+        data = yaml.safe_load(f)
+
+    employees = {}
+    for user in data.get("users", []):
+        employee_id = user.get("employee_id")
+        password = user.get("password")
+        if not employee_id or not password:
+            continue
+        employees[employee_id] = {
+            "employee_id": employee_id,
+            "password": password,
+            "name": user.get("name", user.get("username", employee_id)),
+            "email": user["email"],
+        }
+    return employees
+
+
+_MOCK_EMPLOYEES = _load_mock_employees()
 
 
 def verify_employee(employee_id: str, password: str) -> dict | None:

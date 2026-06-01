@@ -69,27 +69,6 @@ services:
       timeout: 5s
       retries: 5
 
-  seed-data:
-    image: python:3.11-slim
-    container_name: seed_data_init
-    volumes:
-      - .:/app
-    working_dir: /app
-    environment:
-      - PYTHONPATH=/app
-    depends_on:
-      account-db:
-        condition: service_healthy
-      event-db:
-        condition: service_healthy
-      transaction-db:
-        condition: service_healthy
-      ticket-db:
-        condition: service_healthy
-    command: >
-      sh -c "pip install PyYAML SQLAlchemy psycopg2-binary && 
-             python scripts/seed_all.py"
-
 volumes:
   postgres_data:
   event_postgres_data:

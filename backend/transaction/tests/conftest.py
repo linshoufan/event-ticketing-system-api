@@ -13,8 +13,10 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
+import yaml
 from fastapi.testclient import TestClient
 from jose import jwt
 
@@ -32,6 +34,26 @@ from app.main import app
 from app.models.transaction import Transaction
 
 NOW = datetime.now(timezone.utc)
+_UNSET = object()
+
+
+def _load_shared_mock_data() -> dict:
+    yaml_path = Path(__file__).resolve().parents[3] / "scripts" / "mock_data.yaml"
+    with yaml_path.open("r") as f:
+        return yaml.safe_load(f)
+
+
+_SHARED_MOCK_DATA = _load_shared_mock_data()
+_SHARED_USERS = {u["user_id"]: u for u in _SHARED_MOCK_DATA.get("users", [])}
+_SHARED_EVENTS = {e["id"]: e for e in _SHARED_MOCK_DATA.get("events", [])}
+
+
+def _shared_user(user_id: str) -> dict:
+    return _SHARED_USERS.get(user_id, {})
+
+
+def _shared_event(event_id: str) -> dict:
+    return _SHARED_EVENTS.get(event_id, {})
 
 # DB
 @pytest.fixture(scope="session", autouse=True)
@@ -49,6 +71,7 @@ def db():
     try:
         yield session
     finally:
+        session.rollback()
         session.query(Transaction).delete()
         session.commit()
         session.close()
@@ -61,8 +84,15 @@ class FakeAccountClient:
         self.autofill_updates: list[dict] = []
         self.invalidated: list[str] = []
 
-    def set_profile(self, user_id, role="employee", locked=False,
-                    diet="non-veg", driving=False, username=None):
+    def set_profile(self, user_id, role=None, locked=False,
+                    diet=None, driving=None, username=None):
+        shared = _shared_user(user_id)
+        registration_status = shared.get("registration_status", "active")
+        role = role or shared.get("role", "employee")
+        locked = locked or registration_status == "locked"
+        diet = diet if diet is not None else shared.get("diet_type", "non-veg")
+        driving = driving if driving is not None else shared.get("self_driving", False)
+        username = username if username is not None else shared.get("username")
         self.profiles[user_id] = RegistrationProfile(
             user_id=user_id, role=role,
             registration_status="locked" if locked else "active",
@@ -104,13 +134,27 @@ class FakeEventClient:
     def __init__(self):
         self.events: dict[str, EventInfo] = {}
 
-    def set_event(self, event_id, ticket_limit=None, cancellation_deadline=None,
+    def set_event(self, event_id, ticket_limit=_UNSET, cancellation_deadline=_UNSET,
                   is_draft=False, status=EVENT_STATUS_REGISTERING,
                   reg_open=True):
+        shared = _shared_event(event_id)
+        if ticket_limit is _UNSET:
+            ticket_limit = shared.get("ticket_limit")
+        if cancellation_deadline is _UNSET:
+            if "cancellation_offset" in shared:
+                cancellation_deadline = NOW + timedelta(hours=shared["time_offset"] - shared["cancellation_offset"])
+            else:
+                cancellation_deadline = None
+
+        guest_allowed = shared.get("guest_allowed")
+        if guest_allowed is None:
+            guest_allowed = ticket_limit is None
+
+        event_name = shared.get("name", f"Event {event_id}")
         self.events[event_id] = EventInfo(
-            event_id=event_id, name=f"Event {event_id}", status=status,
-            is_draft=is_draft, guest_allowed=(ticket_limit is None),
-            ticket_limit=ticket_limit, remaining_tickets=0,
+            event_id=event_id, name=event_name, status=status,
+            is_draft=is_draft, guest_allowed=guest_allowed,
+            ticket_limit=ticket_limit, remaining_tickets=shared.get("remaining_tickets", 0),
             cancellation_deadline=cancellation_deadline,
             registration_start=(NOW - timedelta(days=1)) if reg_open else (NOW + timedelta(days=1)),
             registration_end=NOW + timedelta(days=7),

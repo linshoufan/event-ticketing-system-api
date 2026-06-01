@@ -30,10 +30,10 @@ def _make_account_client(handler) -> AccountClient:
 def test_account_client_get_registration_profile_active():
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.headers["X-Internal-Key"] == "test-key"
-        assert request.url.path == "/v1/internal/users/u-1/registration-profile"
+        assert request.url.path == "/v1/internal/users/user_006/registration-profile"
         return httpx.Response(200, json={
             "data": {
-                "userId": "u-1",
+                "userId": "user_006",
                 "username": "user111",
                 "role": "employee",
                 "registrationStatus": "active",
@@ -44,9 +44,9 @@ def test_account_client_get_registration_profile_active():
         })
 
     client = _make_account_client(handler)
-    profile = client.get_registration_profile("u-1")
+    profile = client.get_registration_profile("user_006")
 
-    assert profile.user_id == "u-1"
+    assert profile.user_id == "user_006"
     assert profile.username == "user111" 
     assert profile.role == "employee"
     assert profile.registration_status == "active"
@@ -59,7 +59,7 @@ def test_account_client_get_registration_profile_locked():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={
             "data": {
-                "userId": "u-2",
+                "userId": "user_007",
                 "role": "employee",
                 "registrationStatus": "locked",
                 "unlockAt": "2026-06-20T08:00:00+00:00",
@@ -69,7 +69,7 @@ def test_account_client_get_registration_profile_locked():
         })
 
     client = _make_account_client(handler)
-    profile = client.get_registration_profile("u-2")
+    profile = client.get_registration_profile("user_007")
 
     assert profile.username is None
     assert profile.is_locked is True
@@ -90,7 +90,7 @@ def test_account_client_5xx_raises_unavailable():
 
     client = _make_account_client(handler)
     with pytest.raises(ExternalUnavailableError):
-        client.get_registration_profile("u-1")
+        client.get_registration_profile("user_006")
 
 def test_account_client_caches_profile():
     call_count = {"n": 0}
@@ -99,7 +99,7 @@ def test_account_client_caches_profile():
         call_count["n"] += 1
         return httpx.Response(200, json={
             "data": {
-                "userId": "u-1", "role": "employee",
+                "userId": "user_006", "role": "employee",
                 "registrationStatus": "active", "unlockAt": None,
                 "autofill": {"dietType": None, "selfDriving": None},
                 "preferences": [],
@@ -107,9 +107,9 @@ def test_account_client_caches_profile():
         })
 
     client = _make_account_client(handler)
-    client.get_registration_profile("u-1")
-    client.get_registration_profile("u-1")
-    client.get_registration_profile("u-1")
+    client.get_registration_profile("user_006")
+    client.get_registration_profile("user_006")
+    client.get_registration_profile("user_006")
     assert call_count["n"] == 1, "second call should be served from cache"
 
 def test_account_client_punish_invalidates_cache():
@@ -121,7 +121,7 @@ def test_account_client_punish_invalidates_cache():
         if request.method == "GET":
             return httpx.Response(200, json={
                 "data": {
-                    "userId": "u-1", "role": "employee",
+                    "userId": "user_006", "role": "employee",
                     "registrationStatus": "active", "unlockAt": None,
                     "autofill": {"dietType": None, "selfDriving": None},
                     "preferences": [],
@@ -129,17 +129,17 @@ def test_account_client_punish_invalidates_cache():
             })
         return httpx.Response(200, json={
             "data": {
-                "userId": "u-1",
+                "userId": "user_006",
                 "registrationStatus": "locked",
                 "unlockAt": "2026-12-31T00:00:00+00:00",
             }
         })
 
     client = _make_account_client(handler)
-    client.get_registration_profile("u-1")    # GET (1)
-    client.get_registration_profile("u-1")    # cached
-    client.punish_user("u-1")                  # POST (2), invalidates cache
-    client.get_registration_profile("u-1")    # GET again (3)
+    client.get_registration_profile("user_006")    # GET (1)
+    client.get_registration_profile("user_006")    # cached
+    client.punish_user("user_006")                  # POST (2), invalidates cache
+    client.get_registration_profile("user_006")    # GET again (3)
 
     methods = [m for m, _ in call_log]
     assert methods == ["GET", "POST", "GET"]
@@ -155,10 +155,10 @@ def _make_event_client(handler) -> EventClient:
 
 def test_event_client_get_event_with_limit():
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == "/v1/events/evt-1"
+        assert request.url.path == "/v1/events/event_008"
         return httpx.Response(200, json={
             "data": {
-                "eventId": "evt-1",
+                "eventId": "event_008",
                 "name": "Family Day",
                 "status": 1,  # REGISTERING
                 "isDraft": False,
@@ -174,9 +174,9 @@ def test_event_client_get_event_with_limit():
         })
 
     client = _make_event_client(handler)
-    event = client.get_event("evt-1")
+    event = client.get_event("event_008")
 
-    assert event.event_id == "evt-1"
+    assert event.event_id == "event_008"
     assert event.status == EVENT_STATUS_REGISTERING
     assert event.has_capacity_limit is True
     assert event.ticket_limit == 100
@@ -187,7 +187,7 @@ def test_event_client_unlimited_event():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={
             "data": {
-                "eventId": "evt-2", "name": "Open Lecture", "status": 1,
+                "eventId": "event_009", "name": "Open Lecture", "status": 1,
                 "isDraft": False, "guestAllowed": False,
                 "ticketLimit": None, "remainingTickets": 0,
                 "cancellationDeadline": None,
@@ -199,7 +199,7 @@ def test_event_client_unlimited_event():
         })
 
     client = _make_event_client(handler)
-    event = client.get_event("evt-2")
+    event = client.get_event("event_009")
     assert event.has_capacity_limit is False
     assert event.ticket_limit is None
 
@@ -207,7 +207,7 @@ def test_event_client_is_registration_open():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={
             "data": {
-                "eventId": "evt-3", "name": "X", "status": 1,
+                "eventId": "event_010", "name": "X", "status": 1,
                 "isDraft": False, "guestAllowed": False,
                 "ticketLimit": None, "remainingTickets": 0,
                 "cancellationDeadline": None,
@@ -219,7 +219,7 @@ def test_event_client_is_registration_open():
         })
 
     client = _make_event_client(handler)
-    event = client.get_event("evt-3")
+    event = client.get_event("event_010")
     assert event.is_registration_open(now=datetime(2026, 5, 15, tzinfo=timezone.utc)) is True
     assert event.is_registration_open(now=datetime(2026, 7, 1, tzinfo=timezone.utc)) is False
 
@@ -237,7 +237,7 @@ def test_ticket_client_mock_mode_issue_returns_uuid(monkeypatch):
     """ticket_service_enabled=False 時，issue_ticket 不打 HTTP，直接給 mock id。"""
     monkeypatch.setattr("app.core.external.settings.ticket_service_enabled", False)
     client = TicketClient()
-    ticket_id = client.issue_ticket(user_id="u-1", event_id="evt-1", transaction_id="tx-1")
+    ticket_id = client.issue_ticket(user_id="user_006", event_id="event_008", transaction_id="tx_001")
     assert ticket_id.startswith("mock-")
 
 def test_ticket_client_mock_mode_void_is_noop(monkeypatch):
@@ -249,7 +249,7 @@ def test_ticket_client_mock_mode_void_is_noop(monkeypatch):
 def test_ticket_client_mock_mode_list_unused_returns_empty(monkeypatch):
     monkeypatch.setattr("app.core.external.settings.ticket_service_enabled", False)
     client = TicketClient()
-    assert client.list_unused_tickets("evt-1") == []
+    assert client.list_unused_tickets("event_008") == []
 
 def test_ticket_client_real_mode_issue_ticket(monkeypatch):
     """模擬 ticket service enabled 時打真實 HTTP。"""
@@ -266,7 +266,7 @@ def test_ticket_client_real_mode_issue_ticket(monkeypatch):
         headers={"X-Internal-Key": "test-key"},
         transport=httpx.MockTransport(handler),
     )
-    ticket_id = client.issue_ticket(user_id="u-1", event_id="evt-1", transaction_id="tx-1")
+    ticket_id = client.issue_ticket(user_id="user_006", event_id="event_008", transaction_id="tx_001")
     assert ticket_id == "real-ticket-xyz"
 
 def test_ticket_client_void_404_is_treated_as_success(monkeypatch):

@@ -34,7 +34,7 @@ pip install -r requirements.txt
 Start the local databases from the repo root:
 
 ```bash
-docker compose up -d
+docker compose up -d account-db event-db transaction-db ticket-db
 ```
 This will start:
 - `account-db` (Port 5433)
@@ -44,11 +44,17 @@ This will start:
 
 ### 3.3 Initialize Data (Optional)
 
-Run the global seed script to populate mock data for all services (Users, Events, Transactions, Tickets):
+Run the global seed script from your host machine to populate mock data for all services (Users, Events, Transactions, Tickets):
 
 ```bash
 # From root directory
 python scripts/seed_all.py
+```
+
+By default, the seed script upserts the records in `scripts/mock_data.yaml` and does not clear existing data. To explicitly reset the target mock tables first, run:
+
+```bash
+python scripts/seed_all.py --reset
 ```
 
 ### 3.4 Start Services

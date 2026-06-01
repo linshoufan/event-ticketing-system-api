@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "nodemon src/server.ts",
     "build": "tsc",
-    "test": "npx jest --runInBand --detectOpenHandles",
-    "test-db": "npx jest db --runInBand --detectOpenHandles",
-    "test-api": "npx jest api --runInBand --detectOpenHandles"
+    "test": "DB_NAME=test_event_db NODE_ENV=test npx jest --runInBand --detectOpenHandles",
+    "test-db": "DB_NAME=test_event_db NODE_ENV=test npx jest db --runInBand --detectOpenHandles",
+    "test-api": "DB_NAME=test_event_db NODE_ENV=test npx jest api --runInBand --detectOpenHandles"
   },
   "keywords": [],
   "author": "",
@@ -31,6 +31,7 @@
     "@types/node": "^25.9.1",
     "@types/node-cron": "^3.0.11",
     "@types/supertest": "^7.2.0",
+    "js-yaml": "^3.14.2",
     "jest": "^30.4.2",
     "nodemon": "^3.1.14",
     "sqlite3": "^6.0.1",

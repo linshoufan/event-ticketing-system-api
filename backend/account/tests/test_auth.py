@@ -6,19 +6,27 @@ from app.models.user import User
 LOGIN_URL = "/v1/auth/login"
 
 
-def mock_verify_employee(employee_id="1000001", name="Andy Hsu", email="andy@company.com"):
-    """回傳 mock 的外部 DB 驗證結果。"""
+def employee_record(shared_data, employee_id):
+    user = next(u for u in shared_data["users"] if u.get("employee_id") == employee_id)
     return {
-        "employee_id": employee_id,
-        "name": name,
-        "email": email,
+        "employee_id": user["employee_id"],
+        "name": user["name"],
+        "email": user["email"],
     }
 
 
-def test_first_login_creates_user(client, db_session):
+def mock_verify_employee(shared_data, employee_id="1000001", email=None):
+    """回傳 mock 的外部 DB 驗證結果。"""
+    employee = employee_record(shared_data, employee_id)
+    if email is not None:
+        employee["email"] = email
+    return employee
+
+
+def test_first_login_creates_user(client, db_session, shared_data):
     with patch(
         "app.services.auth_service.verify_employee",
-        return_value=mock_verify_employee(),
+        return_value=mock_verify_employee(shared_data, "1000001"),
     ):
         response = client.post(
             LOGIN_URL,
@@ -34,10 +42,10 @@ def test_first_login_creates_user(client, db_session):
     assert user.role == "employee"
 
 
-def test_second_login_does_not_duplicate_user(client, db_session):
+def test_second_login_does_not_duplicate_user(client, db_session, shared_data):
     with patch(
         "app.services.auth_service.verify_employee",
-        return_value=mock_verify_employee(employee_id="1000099", email="unique@company.com"),
+        return_value=mock_verify_employee(shared_data, "1000099"),
     ):
         client.post(LOGIN_URL, json={"employeeId": "1000099", "password": "pw", "role": None})
         client.post(LOGIN_URL, json={"employeeId": "1000099", "password": "pw", "role": None})
@@ -46,10 +54,10 @@ def test_second_login_does_not_duplicate_user(client, db_session):
     assert len(users) == 1
 
 
-def test_token_payload_is_correct(client, db_session):
+def test_token_payload_is_correct(client, db_session, shared_data):
     with patch(
         "app.services.auth_service.verify_employee",
-        return_value=mock_verify_employee(employee_id="1000002", email="payload@company.com"),
+        return_value=mock_verify_employee(shared_data, "1000002", email="payload@company.com"),
     ):
         response = client.post(
             LOGIN_URL,
@@ -78,18 +86,18 @@ def test_employee_not_found_returns_404(client, db_session):
     assert response.json()["error"]["code"] == "EMPLOYEE_NOT_FOUND"
 
 
-def test_wrong_role_returns_403(client, db_session):
+def test_wrong_role_returns_403(client, db_session, shared_data):
     # 先建立一個 employee
     with patch(
         "app.services.auth_service.verify_employee",
-        return_value=mock_verify_employee(employee_id="1000003", email="role@company.com"),
+        return_value=mock_verify_employee(shared_data, "1000003"),
     ):
         client.post(LOGIN_URL, json={"employeeId": "1000003", "password": "pw", "role": None})
 
     # 用錯誤的 role 再登入
     with patch(
         "app.services.auth_service.verify_employee",
-        return_value=mock_verify_employee(employee_id="1000003", email="role@company.com"),
+        return_value=mock_verify_employee(shared_data, "1000003"),
     ):
         response = client.post(
             LOGIN_URL,

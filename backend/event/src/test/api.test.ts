@@ -1,23 +1,34 @@
 import request from 'supertest'
+import fs from 'fs'
+import path from 'path'
 import app from '../app'
 import { EventDB } from '../core/database'
 import { EventEntity } from '../model/event.model'
 
-// Dummy data for test
+const yaml = require('js-yaml') as { load: (input: string) => any }
+
+function loadSharedEvent(eventId: string) {
+  const yamlPath = path.resolve(__dirname, '../../../../scripts/mock_data.yaml')
+  const data = yaml.load(fs.readFileSync(yamlPath, 'utf8'))
+  return data.events.find((event: any) => event.id === eventId)
+}
+
+const sharedEvent = loadSharedEvent('event_011')
 const validEventPayload = {
-  name: "2026跨年喝酒BBQ同樂會",
-  description: "如題",
-  location: "公司頂樓",
-  category: "娛樂",
-  guestAllowed: true,
-  remainingTickets: 200,
-  eventStartTime: "2026-12-31T17:00:00Z",
-  eventEndTime: "2026-12-31T21:00:00Z",
-  registrationStart: "2026-10-05T00:00:00Z",
-  registrationEnd: "2026-11-05T23:59:59Z",
-  status: 1,
-  isDraft: false,
-  createdAt: "2026-10-01T12:00:00Z"
+  name: sharedEvent.name,
+  description: sharedEvent.description,
+  location: sharedEvent.location,
+  category: sharedEvent.category,
+  guestAllowed: sharedEvent.guest_allowed,
+  ticketLimit: sharedEvent.ticket_limit,
+  remainingTickets: sharedEvent.remaining_tickets,
+  eventStartTime: sharedEvent.event_start_time,
+  eventEndTime: sharedEvent.event_end_time,
+  registrationStart: sharedEvent.registration_start,
+  registrationEnd: sharedEvent.registration_end,
+  status: sharedEvent.status,
+  isDraft: sharedEvent.is_draft,
+  createdAt: sharedEvent.created_at
 }
 
 describe('Event API Integration Tests', () => {
