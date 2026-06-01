@@ -39,6 +39,7 @@ def test_first_login_creates_user(client, db_session, shared_data):
 
     user = db_session.query(User).filter(User.username == "1000001").first()
     assert user is not None
+    assert user.user_id == "1000001"
     assert user.role == "employee"
 
 
@@ -68,8 +69,7 @@ def test_token_payload_is_correct(client, db_session, shared_data):
     payload = decode_access_token(token)
 
     assert payload["role"] == "employee"
-    user = db_session.query(User).filter(User.username == "1000002").first()
-    assert payload["user_id"] == user.user_id
+    assert payload["user_id"] == "1000002"
 
 
 def test_employee_not_found_returns_404(client, db_session):

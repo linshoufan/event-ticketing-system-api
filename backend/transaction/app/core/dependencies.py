@@ -1,13 +1,12 @@
 from dataclasses import dataclass
 
 from fastapi import Depends, Header, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import settings
 from app.core.security import decode_access_token
 
-# tokenUrl 只是給 OpenAPI docs 用的，實際 token 由 Account Service 發
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/v1/auth/login")
+security_scheme = HTTPBearer(auto_error=False)
 
 @dataclass
 class CurrentUser:
@@ -21,8 +20,15 @@ class CurrentUser:
     role: str
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)) -> CurrentUser:
+def get_current_user(auth: HTTPAuthorizationCredentials | None = Depends(security_scheme)) -> CurrentUser:
     """從 Authorization header 取出 JWT 並解析。"""
+    if not auth:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "NOT_LOGGED_IN", "message": "Not logged in"},
+        )
+
+    token = auth.credentials
     payload = decode_access_token(token)
     user_id = payload.get("user_id")
     role = payload.get("role")

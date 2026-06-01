@@ -1,5 +1,3 @@
-import uuid
-
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -31,7 +29,7 @@ def login(employee_id: str, password: str, role: str | None, db: Session) -> dic
     if user is None:
         # 第一次登入，建立 user
         user = User(
-            user_id=str(uuid.uuid4()),
+            user_id=employee_id,
             username=employee_id,
             email=employee["email"],
             role="employee",

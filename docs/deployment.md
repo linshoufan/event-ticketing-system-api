@@ -31,31 +31,66 @@ pip install -r requirements.txt
 
 ### 3.2 Start Databases
 
-Start the local databases from the repo root:
+To start only the local databases from the repo root, run:
 
 ```bash
 docker compose up -d account-db event-db transaction-db ticket-db
 ```
+
 This will start:
 - `account-db` (Port 5433)
 - `event-db` (Port 5432)
 - `transaction-db` (Port 5434)
 - `ticket-db` (Port 5435)
 
-### 3.3 Initialize Data (Optional)
+This command does **not** run `seed-data`, because it explicitly starts only the four database services.
 
-Run the global seed script from your host machine to populate mock data for all services (Users, Events, Transactions, Tickets):
+If you run the full Compose stack instead:
 
 ```bash
-# From root directory
+docker compose up
+```
+
+or:
+
+```bash
+docker compose up -d
+```
+
+Compose includes the `seed-data` one-shot service. It runs once, applies migrations/seeding, then exits.
+
+### 3.3 Initialize Data (Optional)
+
+Run the one-shot seed service from the repo root to apply Python service migrations and populate mock data for all services:
+
+```bash
+docker compose run --rm seed-data
+```
+
+Use this command when you started only the DB services, when `seed-data` previously failed, or when you want to sync updated mock data into an existing local database.
+
+The `seed-data` service runs:
+
+- Account migrations
+- Transaction migrations
+- Ticket migrations
+- `python scripts/seed_all.py`
+
+By default, the seed script upserts the records in `scripts/mock_data.yaml` and does not clear existing data.
+
+If you only need to sync mock data from the host machine after the databases are already migrated, you can run:
+
+```bash
 python scripts/seed_all.py
 ```
 
-By default, the seed script upserts the records in `scripts/mock_data.yaml` and does not clear existing data. To explicitly reset the target mock tables first, run:
+To explicitly reset the target mock tables first, run:
 
 ```bash
 python scripts/seed_all.py --reset
 ```
+
+Run seeding again when initializing a fresh environment, after deleting database volumes, or after changing `scripts/mock_data.yaml`.
 
 ### 3.4 Start Services
 

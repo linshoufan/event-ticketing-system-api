@@ -76,7 +76,27 @@ services:
       - .:/app
     working_dir: /app
     environment:
-      - PYTHONPATH=/app
+      PYTHONPATH: /app
+      ACCOUNT_DB_HOST: account-db
+      ACCOUNT_DB_PORT: 5432
+      ACCOUNT_DB_USER: ${ACCOUNT_DB_USER}
+      ACCOUNT_DB_PASSWORD: ${ACCOUNT_DB_PASSWORD}
+      ACCOUNT_DB_NAME: ${ACCOUNT_DB_NAME}
+      TRANSACTION_DB_HOST: transaction-db
+      TRANSACTION_DB_PORT: 5432
+      TRANSACTION_DB_USER: ${TRANSACTION_DB_USER}
+      TRANSACTION_DB_PASSWORD: ${TRANSACTION_DB_PASSWORD}
+      TRANSACTION_DB_NAME: ${TRANSACTION_DB_NAME}
+      TICKET_DB_HOST: ticket-db
+      TICKET_DB_PORT: 5432
+      TICKET_DB_USER: ${TICKET_DB_USER}
+      TICKET_DB_PASSWORD: ${TICKET_DB_PASSWORD}
+      TICKET_DB_NAME: ${TICKET_DB_NAME}
+      EVENT_DB_HOST: event-db
+      EVENT_DB_PORT: 5432
+      EVENT_DB_USER: ${EVENT_DB_USER}
+      EVENT_DB_PASSWORD: ${EVENT_DB_PASSWORD}
+      EVENT_DB_NAME: ${EVENT_DB_NAME}
     depends_on:
       account-db:
         condition: service_healthy
@@ -87,7 +107,7 @@ services:
       ticket-db:
         condition: service_healthy
     command: >
-      sh -c "pip install PyYAML SQLAlchemy psycopg2-binary alembic && 
+      sh -c "pip install -r requirements.txt && 
              echo '🛠️ Running Account Migrations...' && cd backend/account && alembic upgrade head &&
              echo '🛠️ Running Transaction Migrations...' && cd ../transaction && alembic upgrade head &&
              echo '🛠️ Running Ticket Migrations...' && cd ../ticket && alembic upgrade head &&
