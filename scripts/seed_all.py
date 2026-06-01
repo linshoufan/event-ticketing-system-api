@@ -24,7 +24,10 @@ def get_engine(service, default_db_name, default_port):
 
 def table_exists(engine, table_name):
     inspector = inspect(engine)
-    return table_name in inspector.get_table_names()
+    try:
+        return table_name in inspector.get_table_names()
+    except Exception:
+        return False
 
 
 def reset_tables(conn, *tables):
@@ -33,11 +36,11 @@ def reset_tables(conn, *tables):
 
 
 def seed_all(reset=False):
-    base_path = os.path.dirname(__file__)
-    yaml_path = os.path.join(base_path, "mock_data.yaml")
+    base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    yaml_path = os.path.join(base_path, "scripts", "mock_data.yaml")
     
     if not os.path.exists(yaml_path):
-        print(f"Error: {yaml_path} not found.")
+        print(f"❌ Error: {yaml_path} not found.")
         return
         
     with open(yaml_path, "r") as f:
@@ -60,9 +63,9 @@ def seed_all(reset=False):
                         updated_at = NOW()
                 """), {"uid": u['user_id'], "email": u['email'], "role": u['role']})
             conn.commit()
-        print(f"✅ Seeded {len(data['users'])} Account Users")
+        print(f"✅ Seeded Account Users")
     else:
-        print("⚠️ Warning: 'users' table missing. Run Account migrations first.")
+        print("⚠️ Warning: 'users' table missing. Skipping Account Seed.")
 
     # 2. Seed Events
     engine = get_engine("event", "event_db", 5432)
@@ -102,7 +105,7 @@ def seed_all(reset=False):
             conn.commit()
         print("✅ Seeded Events")
     else:
-        print("⚠️ Warning: 'events' table missing. Ensure Event service has synced its schema.")
+        print("⚠️ Warning: 'events' table missing. Skipping Event Seed.")
 
     # 3. Seed Transactions
     engine = get_engine("transaction", "transaction_db", 5434)
@@ -121,8 +124,6 @@ def seed_all(reset=False):
                 """), {"id": tx['id'], "uid": tx['user_id'], "eid": tx['event_id'], "status": tx['status'], "tid": tx['ticket_id']})
             conn.commit()
         print("✅ Seeded Transactions")
-    else:
-        print("⚠️ Warning: 'transactions' table missing. Run Transaction migrations first.")
 
     # 4. Seed Tickets
     engine = get_engine("ticket", "ticket_db", 5435)
@@ -142,12 +143,10 @@ def seed_all(reset=False):
                        "status": tk['status'], "cia": checked_in})
             conn.commit()
         print("✅ Seeded Tickets")
-    else:
-        print("⚠️ Warning: 'tickets' table missing. Run Ticket migrations first.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Seed shared mock data.")
     parser.add_argument("--reset", action="store_true")
     args = parser.parse_args()
     seed_all(reset=args.reset)
-    print("\n🚀 Clean seeding completed!")
+    print("\n🚀 Mock data is synchronized!")

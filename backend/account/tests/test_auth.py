@@ -7,7 +7,7 @@ LOGIN_URL = "/v1/auth/login"
 
 
 def employee_record(shared_data, employee_id):
-    user = next(u for u in shared_data["users"] if u.get("employee_id") == employee_id)
+    user = next(u for u in shared_data["employees"] if u.get("employee_id") == employee_id)
     return {
         "employee_id": user["employee_id"],
         "name": user["name"],

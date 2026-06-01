@@ -18,16 +18,16 @@ def _load_mock_employees() -> dict:
         data = yaml.safe_load(f)
 
     employees = {}
-    for user in data.get("users", []):
-        employee_id = user.get("employee_id")
-        password = user.get("password")
+    for employee in data.get("employees", []):
+        employee_id = employee.get("employee_id")
+        password = employee.get("password")
         if not employee_id or not password:
             continue
         employees[employee_id] = {
             "employee_id": employee_id,
             "password": password,
-            "name": user.get("name", user.get("username", employee_id)),
-            "email": user["email"],
+            "name": employee.get("name", employee_id),
+            "email": employee["email"],
         }
     return employees
 
