@@ -28,8 +28,8 @@ describe('PostgreSQL Database Connection Test', () => {
     const dbName = result[0].current_database
 
     console.log(`目前連線的 PostgreSQL 資料庫: [${dbName}]`)
-    expect(dbName).toStrictEqual('event_test_db')
-    // expect(dbName).toStrictEqual('REAL NAME PLACEHOLDER')
+    expect(dbName).toEqual('event_db_test')
+    // expect(dbName).toEqual('REAL NAME PLACEHOLDER')
 
   })
 })

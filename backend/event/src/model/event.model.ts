@@ -31,13 +31,13 @@ export class EventEntity {
   @Column({ type: "timestamp with time zone", name: "cancellation_deadline", nullable: true })
   cancellationDeadline!: Date | null;
 
-  @Column({ type: "decimal", precision: 9, scale: 6, nullable: true })
+  @Column({ type: "decimal", precision: 20, scale: 16, nullable: true })
   latitude!: number;
 
-  @Column({ type: "decimal", precision: 9, scale: 6, nullable: true })
+  @Column({ type: "decimal", precision: 20, scale: 16, nullable: true })
   longitude!: number;
 
-  @Column({ type: "decimal", precision: 9, scale: 6, nullable: true})
+  @Column({ type: "integer", nullable: true})
   checkinRadiusMeters!: number;
 
   @Column({ type: "timestamp with time zone", name: "event_start_time", nullable: false })
@@ -55,7 +55,7 @@ export class EventEntity {
   @Column({ type: "jsonb", default: [], nullable: true })
   faqs!: FAQ[];
 
-  @Column({ type: "int", default: EventStatus.NOT_OPEN, nullable: false })
+  @Column({ type: "varchar", default: EventStatus.NOT_OPEN, nullable: false })
   status!: EventStatus;
 
   @Column({ type: "boolean", name: "is_draft", default: true, nullable: false })
@@ -66,4 +66,13 @@ export class EventEntity {
 
   @UpdateDateColumn({ type: "timestamp with time zone", name: "updated_at", nullable: true })
   updatedAt!: Date;
+}
+
+@Entity('event_ids')
+export class EventIdPool {
+  @PrimaryColumn({ type: "integer" })
+  id: number;
+
+  @Column({ default: false })
+  isOccupied: boolean;
 }

@@ -2,8 +2,10 @@ import request from 'supertest'
 import app from '../app'
 import { EventDB } from '../core/database'
 import { EventEntity } from '../model/event.model'
+import { EventStatus } from '../interface/event.interface'
+import { generateToken, UserRole } from '../middleware/auth.middleware';
 
-// Dummy data for test
+// Dummy data for tests
 const validEventPayload = {
   name: "2026跨年喝酒BBQ同樂會",
   description: "如題",
@@ -15,12 +17,26 @@ const validEventPayload = {
   eventEndTime: "2026-12-31T21:00:00Z",
   registrationStart: "2026-10-05T00:00:00Z",
   registrationEnd: "2026-11-05T23:59:59Z",
-  status: 1,
+  status: EventStatus.NOT_OPEN,
   isDraft: false,
-  createdAt: "2026-10-01T12:00:00Z"
 }
 
-describe('Event API Integration Tests', () => {
+// Dummy header for Auth tests
+const dummyToken1 = generateToken({
+  userId: 'dummy001',
+  email: 'example_welfare@mail.com',
+  role: UserRole.WELFARE_MEMBER
+});
+
+// Dummy header for Auth tests
+const dummyToken2 = generateToken({
+  userId: 'dummy002',
+  email: 'example_user@mail.com',
+  role: UserRole.USER
+});
+
+
+describe('Event API Tests', () => {
   const eventRepo = EventDB.getRepository(EventEntity)
 
   // 開始前先連線並同步資料庫
@@ -50,6 +66,7 @@ describe('Event API Integration Tests', () => {
     it('成功建立活動後，資料庫產生正確紀錄', async () => {
       const response = await request(app)
         .post('/v1/events')
+        .set('Authorization', `Bearer ${dummyToken1}`)
         .send(validEventPayload)
 
       // console.log(response.text)
@@ -61,6 +78,7 @@ describe('Event API Integration Tests', () => {
       expect(eventInDb?.name).toStrictEqual(validEventPayload.name)
       expect(eventInDb?.location).toStrictEqual(validEventPayload.location)
       expect(eventInDb?.remainingTickets).toBe(200)
+      expect(eventInDb?.createdAt).toBeDefined()
     })
 
     it('Schema 驗證：開始時間 < 結束時間', async () => {
@@ -72,6 +90,7 @@ describe('Event API Integration Tests', () => {
 
       const response = await request(app)
         .post('/v1/events')
+        .set('Authorization', `Bearer ${dummyToken1}`)
         .send(invalidPayload)
 
       expect(response.status).toBe(400)
@@ -88,10 +107,12 @@ describe('Event API Integration Tests', () => {
   // ==========================================
   describe('GET /v1/events/:eventId', () => {
     it('成功取得指定活動詳情', async () => {
-      const newEvent = eventRepo.create({ ...validEventPayload, eventId: 'test_read_001' })
-      await eventRepo.save(newEvent)
+      const newEvent = eventRepo.create({ eventId: 'test_read_001', ...validEventPayload })
+      await eventRepo.insert(newEvent)
 
-      const response = await request(app).get('/v1/events/test_read_001')
+      const response = await request(app)
+        .get('/v1/events/test_read_001')
+        .set('Authorization', `Bearer ${dummyToken1}`)
       // console.log(response.text)
 
       expect(response.status).toBe(200)
@@ -100,7 +121,9 @@ describe('Event API Integration Tests', () => {
     })
 
     it('查詢不存在的活動回傳錯誤碼', async () => {
-      const response = await request(app).get('/v1/events/test_read_002')
+      const response = await request(app)
+      .get('/v1/events/test_read_002')
+      .set('Authorization', `Bearer ${dummyToken1}`)
       expect(response.status).toBe(404)
     })
   })
@@ -110,11 +133,12 @@ describe('Event API Integration Tests', () => {
   // ==========================================
   describe('PATCH /v1/events/:eventId', () => {
     it('成功更新活動欄位後，資料庫正確反映', async () => {
-      const newEvent = eventRepo.create({ ...validEventPayload, eventId: 'test_update_001' })
+      const newEvent = eventRepo.create({ eventId: 'test_update_001', ...validEventPayload })
       await eventRepo.insert(newEvent)
 
       const response = await request(app)
         .patch('/v1/events/test_update_001')
+        .set('Authorization', `Bearer ${dummyToken1}`)
         .send({ ticketLimit: 500, guestAllowed: false })
 
       // console.log(response.text)
@@ -129,6 +153,7 @@ describe('Event API Integration Tests', () => {
     it('Schema 驗證：傳入型別錯誤的更新資料', async () => {
       const response = await request(app)
         .patch('/v1/events/test_update_001')
+        .set('Authorization', `Bearer ${dummyToken1}`)
         .send({ ticketLimit: "五百" })
 
       expect(response.status).toBe(400)
@@ -141,14 +166,23 @@ describe('Event API Integration Tests', () => {
   // ==========================================
   describe('DELETE /v1/events/:eventId', () => {
     it('成功刪除活動後，資料從資料庫抹除', async () => {
-      const newEvent = eventRepo.create({ ...validEventPayload, eventId: 'test_delete_001' })
+      const newEvent = eventRepo.create({ eventId: 'event_1', ...validEventPayload })
       await eventRepo.save(newEvent)
 
-      const response = await request(app).delete('/v1/events/test_delete_001')
-      console.log(response.text)
+      // 權限不足測試
+      const invalidOperation = await request(app)
+        .delete('/v1/events/event_1')
+        .set('Authorization', `Bearer ${dummyToken2}`)
+
+      expect(invalidOperation.status).toBe(403)
+
+      const response = await request(app)
+        .delete('/v1/events/event_1')
+        .set('Authorization', `Bearer ${dummyToken1}`)
+      // console.log(response.text)
       expect(response.status).toBe(200)
 
-      const deletedEvent = await eventRepo.findOne({ where: { eventId: 'test_delete_001' } })
+      const deletedEvent = await eventRepo.findOne({ where: { eventId: 'event_1' } })
       expect(deletedEvent).toBeNull()
     })
   })
