@@ -1,6 +1,6 @@
 # Cloud Run Deployment
 
-This project should be deployed as four Cloud Run services:
+This project should be deployed as four Cloud Run services running at the same time:
 
 - `account-service`
 - `event-service`
