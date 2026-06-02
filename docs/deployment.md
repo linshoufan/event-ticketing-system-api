@@ -127,3 +127,5 @@ Note: Ensure all services share the same `JWT_SECRET_KEY` and `INTERNAL_API_KEY`
 If a change only affects backend code, redeploy the backend unit.
 
 If a shared contract changes with the separate frontend repo, redeploy the affected frontend and backend units together.
+
+For containerized Google Cloud Run deployment, see [cloud-run.md](cloud-run.md). Cloud Run should run the API services as separate services and use Cloud SQL instead of the local Docker Compose database containers.
