@@ -23,10 +23,18 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8000/v1/auth/callback}
+      EMPLOYEE_AUTH_MODE: ${EMPLOYEE_AUTH_MODE:-mock}
+      EMPLOYEE_DB_HOST: employee-db
+      EMPLOYEE_DB_PORT: 5432
+      EMPLOYEE_DB_USER: ${EMPLOYEE_DB_USER:-postgres}
+      EMPLOYEE_DB_PASSWORD: ${EMPLOYEE_DB_PASSWORD:-postgres}
+      EMPLOYEE_DB_NAME: ${EMPLOYEE_DB_NAME:-employee_db}
     ports:
       - "8000:8080"
     depends_on:
       account-db:
+        condition: service_healthy
+      employee-db:
         condition: service_healthy
 
   event-api:
@@ -121,6 +129,24 @@ services:
       timeout: 5s
       retries: 5
 
+  employee-db:
+    image: postgres:15-alpine
+    container_name: employee_postgres_local
+    environment:
+      POSTGRES_USER: ${EMPLOYEE_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${EMPLOYEE_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${EMPLOYEE_DB_NAME:-employee_db}
+    ports:
+      - "${EMPLOYEE_DB_PORT:-5436}:5432"
+    volumes:
+      - employee_postgres_data:/var/lib/postgresql/data
+      - ./docs/employee-db.sql:/docker-entrypoint-initdb.d/01-employee-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${EMPLOYEE_DB_USER:-postgres} -d ${EMPLOYEE_DB_NAME:-employee_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   event-db:
     image: postgres:15-alpine
     container_name: event_postgres_local
@@ -174,6 +200,7 @@ services:
 
 volumes:
   postgres_data:
+  employee_postgres_data:
   event_postgres_data:
   transaction_postgres_data:
   ticket_postgres_data:

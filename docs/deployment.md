@@ -43,6 +43,7 @@ This will start:
 - `transaction-api` (Port 8002)
 - `ticket-api` (Port 8001)
 - `account-db` (Port 5433)
+- `employee-db` (Port 5436)
 - `event-db` (Port 5432)
 - `transaction-db` (Port 5434)
 - `ticket-db` (Port 5435)
@@ -52,7 +53,7 @@ Docker Compose does not run migrations or seed data automatically.
 If you only need the local databases because you want to run API services directly with `uvicorn`, start just the database services:
 
 ```bash
-docker compose up -d account-db event-db transaction-db ticket-db
+docker compose up -d account-db employee-db event-db transaction-db ticket-db
 ```
 
 ### 3.3 Initialize Data (Optional)
