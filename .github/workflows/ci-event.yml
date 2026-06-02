@@ -6,6 +6,7 @@ on:
     paths:
       - "backend/event/**"
       - "scripts/**"
+      - "requirements.txt"
       - ".github/workflows/ci-event.yml"
 
 jobs:
