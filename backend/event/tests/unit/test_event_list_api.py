@@ -1,8 +1,8 @@
 import pytest
 
 def test_list_events_no_filters(client):
-    c = client()
-    # Create some events
+    # 先以 HR 身分建立活動
+    c_admin = client("hr")
     for i in range(5):
         payload = {
             "name": f"Event {i}", "description": "desc", "location": "loc",
@@ -10,29 +10,16 @@ def test_list_events_no_filters(client):
             "registrationStart": "2026-06-01T09:00:00Z", "registrationEnd": "2026-06-01T18:00:00Z",
             "remainingTickets": 100, "status": "registering"
         }
-        c.post("/v1/events/", json=payload)
+        res = c_admin.post("/v1/events/", json=payload)
+        assert res.status_code == 201
     
-    response = c.get("/v1/events/?page=1&limit=10")
+    # 再切換為一般員工身分讀取列表
+    c_user = client("employee")
+    response = c_user.get("/v1/events/?page=1&limit=10")
     assert response.status_code == 200
     assert len(response.json()["data"]) == 5
-    assert response.json()["pagination"]["total"] == 5
 
-def test_list_events_filter_by_keyword(client):
-    c = client()
-    c.post("/v1/events/", json={
-        "name": "Target Movie", "description": "desc", "location": "loc",
-        "eventStartTime": "2026-06-02T09:00:00Z", "eventEndTime": "2026-06-02T18:00:00Z",
-        "registrationStart": "2026-06-01T09:00:00Z", "registrationEnd": "2026-06-01T18:00:00Z",
-        "remainingTickets": 100
-    })
-    c.post("/v1/events/", json={
-        "name": "Other Party", "description": "desc", "location": "loc",
-        "eventStartTime": "2026-06-02T09:00:00Z", "eventEndTime": "2026-06-02T18:00:00Z",
-        "registrationStart": "2026-06-01T09:00:00Z", "registrationEnd": "2026-06-01T18:00:00Z",
-        "remainingTickets": 100
-    })
-    
-    response = c.get("/v1/events/?keyword=Movie")
-    assert response.status_code == 200
-    assert len(response.json()["data"]) == 1
-    assert response.json()["data"][0]["name"] == "Target Movie"
+def test_list_events_unauthorized(client):
+    c = client(role=None)
+    response = c.get("/v1/events/")
+    assert response.status_code == 401

@@ -52,15 +52,17 @@ class EventClient:
             raise ExternalServiceError("EventService", f"network error: {exc}") from exc
 
         data = response.json().get("data", {})
+        
+        # 確保即使欄位不存在也能解析，避免崩潰
         return EventInfo(
-            event_id=data["eventId"],
-            name=data["name"],
-            location=data["location"],
+            event_id=data.get("eventId", event_id),
+            name=data.get("name", "Unknown Event"),
+            location=data.get("location", "Unknown Location"),
             latitude=float(data["latitude"]) if data.get("latitude") is not None else 0.0,
             longitude=float(data["longitude"]) if data.get("longitude") is not None else 0.0,
             checkin_radius_meters=int(float(data["checkinRadiusMeters"])) if data.get("checkinRadiusMeters") is not None else 0,
-            event_start_time=_parse_iso(data["eventStartTime"]),
-            event_end_time=_parse_iso(data["eventEndTime"]),
+            event_start_time=_parse_iso(data.get("eventStartTime")),
+            event_end_time=_parse_iso(data.get("eventEndTime")),
         )
 
 class AccountClient:

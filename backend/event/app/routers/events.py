@@ -38,7 +38,8 @@ def get_events(
     keyword: Optional[str] = None,
     category: Optional[str] = None,
     status: Optional[int] = None,
-    service: EventService = Depends(get_event_service)
+    service: EventService = Depends(get_event_service),
+    _ = Depends(role_required("employee", "welfare_member", "hr")) # 加入權限檢查
 ):
     events, total = service.get_filtered_events(
         page, limit, keyword, category, status
@@ -46,7 +47,11 @@ def get_events(
     return paginated(events, page, limit, total)
 
 @router.get("/{eventId}", response_model=SingleEventResponse)
-def get_event_details(eventId: str, service: EventService = Depends(get_event_service)):
+def get_event_details(
+    eventId: str, 
+    service: EventService = Depends(get_event_service),
+    _ = Depends(role_required("employee", "welfare_member", "hr")) # 加入權限檢查
+):
     db_event = service.get_event(eventId)
     if not db_event:
         raise HTTPException(status_code=404, detail={"code": "EVENT_NOT_FOUND", "message": "Event not found"})

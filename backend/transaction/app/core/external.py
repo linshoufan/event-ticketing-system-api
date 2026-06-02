@@ -230,11 +230,17 @@ class EventClient:
         except httpx.RequestError as exc:
             raise ExternalUnavailableError("EventService", f"network error: {exc}") from exc
 
-        data = response.json().get("data", {})
-        event = EventInfo(
+        data = response.json()["data"]
+
+        # 將字串狀態轉換為內部使用的整數
+        status_map = {"not_open": 0, "registering": 1, "waitlist": 2, "closed": 3, "ended": 4}
+        raw_status = data.get("status")
+        parsed_status = status_map.get(raw_status, raw_status) if isinstance(raw_status, str) else raw_status
+
+        return EventInfo(
             event_id=data["eventId"],
             name=data["name"],
-            status=data["status"],
+            status=parsed_status,
             is_draft=data.get("isDraft", False),
             guest_allowed=data.get("guestAllowed", False),
             ticket_limit=data.get("ticketLimit"),

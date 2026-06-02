@@ -105,6 +105,21 @@ Run seeding again when initializing a fresh environment, after deleting database
 
 Note: Ensure all services share the same `JWT_SECRET_KEY` and `INTERNAL_API_KEY` in their respective `.env` files.
 
+### 3.5 Troubleshooting & Data Persistence
+
+1. **Volume Persistence**: Using `docker compose down -v` will **delete all persistent database volumes**. If you do this, you must wait for the `seed-data` service to finish or run it manually to repopulate your data.
+2. **Seed Status Verification**: If data is missing (e.g., getting 404 for seeded records), check the status of the initialization container:
+   ```bash
+   docker ps -a --filter name=seed_data_init
+   ```
+   Look for `Exited (0)`. If it exited with a non-zero code, it means migrations or seeding failed.
+3. **Local Execution Sync**: If you run services locally via `uvicorn` (outside Docker) but connect to Docker-hosted databases:
+   - When the Docker database is reset or cleared, you must manually run the seed script from your host machine:
+     ```bash
+     python scripts/seed_all.py
+     ```
+   - Ensure your host environment has all dependencies installed (`pip install -r requirements.txt`).
+
 ## 4. Deployment rule of thumb
 
 If a change only affects backend code, redeploy the backend unit.
