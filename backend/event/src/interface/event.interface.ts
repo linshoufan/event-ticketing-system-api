@@ -1,10 +1,10 @@
 // All event status
 export enum EventStatus {
-  NOT_OPEN = 0,
-  REGISTERING,
-  WAITLIST,
-  CLOSED,
-  ENDED
+  NOT_OPEN = 'not_open',
+  REGISTERING = 'registering',
+  WAITLIST = 'waitlist',
+  CLOSED = 'closed',
+  ENDED = 'ended'
 }
 
 export interface FAQ {
@@ -39,14 +39,4 @@ export interface Event {
   isDraft: boolean;
   createdAt: Date;
   updatedAt: Date;
-}
-
-// 批量更新回傳結果
-export interface BatchUpdateResult {
-  succeeded: string[];
-  failed: {
-    eventId: string;
-    error: string;
-  }[];
-  totalProcessed: number;
 }

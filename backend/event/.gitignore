@@ -1,0 +1,11 @@
+# TypeScript build output
+dist/
+*.js
+*.js.map
+*.d.ts
+*.d.ts.map
+
+# Keep hand-written JS config!
+!jest.config.js
+
+node_modules/

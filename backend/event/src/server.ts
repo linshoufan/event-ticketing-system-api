@@ -1,6 +1,6 @@
 import app from "./app";
 import dotenv from "dotenv";
-import { EventDB } from "./core/database";
+import { AppDataSource } from "./core/database";
 import { initCronJobs } from "./core/event.cron";
 
 dotenv.config();
@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 3000;
 const startServer = async () => {
   try {
     // 初始化 PostgreSQL 連線
-    await EventDB.initialize();
+    await AppDataSource.initialize();
     console.log("Database connected successfully via TypeORM.");
 
     // 初始化每日排程任務
