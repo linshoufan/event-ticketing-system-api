@@ -28,6 +28,14 @@ class Settings(BaseSettings):
     # Internal API
     internal_api_key: str = "dev-internal-key"
 
+    # Employee auth source: "mock" reads scripts/mock_data.yaml, "database" reads an external employee DB.
+    employee_auth_mode: str = "mock"
+    employee_db_host: str = "localhost"
+    employee_db_port: int = 5436
+    employee_db_user: str = "postgres"
+    employee_db_password: str = "postgres"
+    employee_db_name: str = "employee_db"
+
     # Environment
     env: str = "local"
 
