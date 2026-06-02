@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import events
+from .routers import events, internal
 from .core.scheduler import start_scheduler, stop_scheduler
 from contextlib import asynccontextmanager
 
@@ -37,6 +37,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(events.router)
+app.include_router(internal.router)
 
 @app.get("/")
 def read_root():

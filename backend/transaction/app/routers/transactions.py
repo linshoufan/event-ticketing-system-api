@@ -30,6 +30,12 @@ from app.models.transaction import Transaction
 from app.schemas.transaction import (
     RegistrationCreateRequest,
     RegistrationUpdateRequest,
+    RegistrationCreateResponse,
+    TransactionItem,
+    TransactionDetailResponse,
+    TransactionListResponse,
+    UpdateResponse,
+    CancelResponse,
 )
 from app.services import transaction_service
 
@@ -62,7 +68,7 @@ def _enrich_with_event(tx: Transaction, event_client: EventClient) -> dict:
     }
 
 # GET /transactions — 查自己的報名紀錄
-@router.get("/transactions", response_model=dict)
+@router.get("/transactions", response_model=TransactionListResponse)
 def list_my_transactions(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
@@ -82,7 +88,7 @@ def list_my_transactions(
     return paginated(data=data, page=page, limit=limit, total=total)
 
 # GET /transactions/{id} — 查單筆
-@router.get("/transactions/{transaction_id}", response_model=dict)
+@router.get("/transactions/{transaction_id}", response_model=TransactionDetailResponse)
 def get_transaction(
     transaction_id: str = Path(...),
     current_user: CurrentUser = Depends(role_required("employee", "welfare_member")),
@@ -95,7 +101,7 @@ def get_transaction(
     return success(_enrich_with_event(tx, event_client))
 
 # POST /transactions — 報名
-@router.post("/transactions", response_model=dict, status_code=201)
+@router.post("/transactions", response_model=RegistrationCreateResponse, status_code=201)
 def create_transaction(
     body: RegistrationCreateRequest,
     current_user: CurrentUser = Depends(role_required("employee")),
@@ -135,7 +141,7 @@ def create_transaction(
     })
 
 # PATCH /transactions/{id} — 修改報名細節
-@router.patch("/transactions/{transaction_id}", response_model=dict)
+@router.patch("/transactions/{transaction_id}", response_model=UpdateResponse)
 def update_transaction(
     body: RegistrationUpdateRequest,
     transaction_id: str = Path(...),
@@ -155,7 +161,7 @@ def update_transaction(
     return success({"updated": True, "updatedAt": tx.updated_at.isoformat()})
 
 # DELETE /transactions/{id} — 取消報名（含自動補位）
-@router.delete("/transactions/{transaction_id}", response_model=dict)
+@router.delete("/transactions/{transaction_id}", response_model=CancelResponse, response_model_exclude_none=True,)
 def cancel_transaction(
     transaction_id: str = Path(...),
     current_user: CurrentUser = Depends(role_required("employee")),

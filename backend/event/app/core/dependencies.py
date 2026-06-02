@@ -1,6 +1,7 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from .security import decode_access_token
+from .config import settings
 
 security_scheme = HTTPBearer(auto_error=False)
 
@@ -26,3 +27,11 @@ def role_required(*roles: str):
             )
         return payload
     return check
+
+def verify_internal_key(x_internal_key: str = Header(...)):
+    """缺 header → 422；key 錯 → 401。"""
+    if x_internal_key != settings.internal_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "INVALID_INTERNAL_KEY", "message": "Invalid internal API key"},
+        )

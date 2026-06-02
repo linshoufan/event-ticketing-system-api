@@ -10,7 +10,6 @@
 from __future__ import annotations
 
 import logging
-import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -90,11 +89,6 @@ class EventInfo:
     @property
     def has_capacity_limit(self) -> bool:
         return self.ticket_limit is not None
-
-    def is_registration_open(self, now: datetime | None = None) -> bool:
-        """是否在報名期間內。"""
-        now = now or datetime.now(timezone.utc)
-        return self.registration_start <= now <= self.registration_end
 
 def _parse_iso(value: str | None) -> datetime | None:
     if value is None:
@@ -203,12 +197,14 @@ class AccountClient:
 
 # EventClient
 class EventClient:
-    """呼叫 Event Service 的公開 API（無需 internal key）。"""
+    """呼叫 Event Service 的 internal API（X-Internal-Key），
+    與 AccountClient / TicketClient 的跨服務認證方式一致。"""
 
-    def __init__(self, base_url: str | None = None, timeout: float = 5.0):
+    def __init__(self, base_url: str | None = None, internal_key: str | None = None, timeout: float = 5.0):
         self._client = httpx.Client(
             base_url=base_url or settings.event_service_url,
             timeout=timeout,
+            headers={"X-Internal-Key": internal_key or settings.internal_api_key},
         )
         self._cache = TTLCache(default_ttl=30.0)
 
@@ -216,14 +212,14 @@ class EventClient:
         self._client.close()
 
     def get_event(self, event_id: str) -> EventInfo:
-        """GET /v1/events/{eventId}"""
+        """GET /v1/internal/events/{eventId}（Event Service 的 internal 端點，X-Internal-Key 保護）。"""
         cache_key = f"event:{event_id}"
         cached = self._cache.get(cache_key)
         if cached is not None:
             return cached
 
         try:
-            response = self._client.get(f"/v1/events/{event_id}")
+            response = self._client.get(f"/v1/internal/events/{event_id}")
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             raise _classify_http_error("EventService", exc) from exc
@@ -232,12 +228,11 @@ class EventClient:
 
         data = response.json()["data"]
 
-        # 將字串狀態轉換為內部使用的整數
         status_map = {"not_open": 0, "registering": 1, "waitlist": 2, "closed": 3, "ended": 4}
         raw_status = data.get("status")
         parsed_status = status_map.get(raw_status, raw_status) if isinstance(raw_status, str) else raw_status
 
-        return EventInfo(
+        event = EventInfo(
             event_id=data["eventId"],
             name=data["name"],
             status=parsed_status,
@@ -259,9 +254,7 @@ class EventClient:
 
 # TicketClient
 class TicketClient:
-
     def __init__(self, base_url: str | None = None, internal_key: str | None = None, timeout: float = 5.0):
-        self._enabled = settings.ticket_service_enabled
         self._client = httpx.Client(
             base_url=base_url or settings.ticket_service_url,
             timeout=timeout,
@@ -272,51 +265,25 @@ class TicketClient:
         self._client.close()
 
     def issue_ticket(self, *, user_id: str, event_id: str, transaction_id: str) -> str:
-        """配發票券 → 回傳 ticket_id。
-
-        對應的真實 API: POST /v1/internal/tickets
-        """
-        if not self._enabled:
-            mock_ticket_id = f"mock-{uuid.uuid4()}"
-            logger.info(
-                "TicketClient(mock) issue_ticket → %s for user=%s event=%s tx=%s",
-                mock_ticket_id, user_id, event_id, transaction_id,
-            )
-            return mock_ticket_id
-
+        """配發票券 → 回傳 ticket_id。POST /v1/internal/tickets"""
         try:
             response = self._client.post(
                 "/v1/internal/tickets",
-                json={
-                    "userId": user_id,
-                    "eventId": event_id,
-                    "transactionId": transaction_id,
-                },
+                json={"userId": user_id, "eventId": event_id, "transactionId": transaction_id},
             )
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             raise _classify_http_error("TicketService", exc) from exc
         except httpx.RequestError as exc:
             raise ExternalUnavailableError("TicketService", f"network error: {exc}") from exc
-
         return response.json()["data"]["ticketId"]
 
     def void_ticket(self, ticket_id: str) -> None:
-        """作廢票券（取消報名時呼叫）。
-
-        對應的真實 API: DELETE /v1/internal/tickets/{ticket_id}
-        若 ticket 已被 check-in（used），對方會回 409；我們的呼叫時機是
-        cancellation deadline 之前，理論上不會 used，但仍應正確處理。
-        """
-        if not self._enabled:
-            logger.info("TicketClient(mock) void_ticket → %s", ticket_id)
-            return
-
+        """作廢票券。DELETE /v1/internal/tickets/{ticket_id}。404 視為冪等成功。"""
         try:
             response = self._client.delete(f"/v1/internal/tickets/{ticket_id}")
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
-            # 404 視為已不存在 → 視為成功（idempotent）
             if exc.response.status_code == 404:
                 return
             raise _classify_http_error("TicketService", exc) from exc
@@ -324,26 +291,14 @@ class TicketClient:
             raise ExternalUnavailableError("TicketService", f"network error: {exc}") from exc
 
     def list_unused_tickets(self, event_id: str) -> list[str]:
-        """活動結束後，撈出該活動所有「狀態為 unused」的 ticket_id 清單，
-        給 transaction service 跑 no-show punishment 用。
-
-        對應的真實 API: GET /v1/internal/tickets/no-show?eventId=...
-        """
-        if not self._enabled:
-            logger.info("TicketClient(mock) list_unused_tickets event=%s → []", event_id)
-            return []
-
+        """活動結束後撈 unused ticket。GET /v1/internal/tickets/no-show"""
         try:
-            response = self._client.get(
-                "/v1/internal/tickets/no-show",
-                params={"eventId": event_id},
-            )
+            response = self._client.get("/v1/internal/tickets/no-show", params={"eventId": event_id})
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             raise _classify_http_error("TicketService", exc) from exc
         except httpx.RequestError as exc:
             raise ExternalUnavailableError("TicketService", f"network error: {exc}") from exc
-
         return response.json().get("data", {}).get("ticketIds", [])
 
 # Module-level singletons + FastAPI dependencies

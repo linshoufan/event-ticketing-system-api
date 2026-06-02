@@ -375,15 +375,20 @@ def update_registration(
             "Cannot update a cancelled registration",
         )
 
+    event = event_client.get_event(tx.event_id)
+
+    if tx.status == "confirmed" and event.cancellation_deadline is not None:
+        if datetime.now(timezone.utc) > event.cancellation_deadline:
+            raise _http_error(
+                status.HTTP_409_CONFLICT, "PAST_CANCELLATION_DEADLINE",
+                "Modification deadline has passed",
+            )
+
     if guest_count is not None:
-        event = event_client.get_event(tx.event_id)
-        # 依 api-spec：guestCount 僅限不限名額的活動可修改
         if event.has_capacity_limit:
-            # 限名額活動只能是本人（guest_count 必須為 0）；非 0 一律擋下
             if guest_count != 0:
                 raise _http_error(
-                    status.HTTP_400_BAD_REQUEST,
-                    "GUEST_NOT_ALLOWED",
+                    status.HTTP_400_BAD_REQUEST, "GUEST_NOT_ALLOWED",
                     "Limited-capacity events do not allow guests",
                 )
             tx.guest_count = 0

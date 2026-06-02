@@ -10,15 +10,9 @@ security_scheme = HTTPBearer(auto_error=False)
 
 @dataclass
 class CurrentUser:
-    """從 JWT payload 解出來的輕量使用者物件。
-
-    注意：Transaction Service 沒有 users 表，所以這裡只放 token 裡有的欄位。
-    如果業務邏輯需要 registrationStatus、autofill、preferences 等，
-    改呼叫 AccountClient.get_registration_profile()。
-    """
+    """從 JWT payload 解出來的輕量使用者物件。"""
     user_id: str
     role: str
-
 
 def get_current_user(auth: HTTPAuthorizationCredentials | None = Depends(security_scheme)) -> CurrentUser:
     """從 Authorization header 取出 JWT 並解析。"""
