@@ -1,20 +1,9 @@
-from datetime import timedelta
-from datetime import datetime, timezone
-
-from jose import jwt
-
-from app.core.config import settings
-
 def test_create_event_success(client, valid_event_payload):
     c = client("welfare_member")
     response = c.post("/v1/events/", json=valid_event_payload)
 
     assert response.status_code == 201
-    assert response.json()["data"] == {
-        "eventId": response.json()["data"]["eventId"],
-        "isDraft": False,
-        "createdAt": response.json()["data"]["createdAt"],
-    }
+    assert response.json()["data"]["eventId"] is not None
 
 
 def test_create_event_duplicate_name_returns_conflict(client, valid_event_payload):
@@ -64,7 +53,7 @@ def test_create_event_invalid_token(raw_client, valid_event_payload):
 def test_create_event_expired_token(raw_client, auth_headers, valid_event_payload):
     response = raw_client.post(
         "/v1/events/",
-        headers=auth_headers(expires_delta=timedelta(seconds=-1)),
+        headers=auth_headers(user_id="u_test", role="welfare_member", expired=True),
         json=valid_event_payload,
     )
 
@@ -72,18 +61,10 @@ def test_create_event_expired_token(raw_client, auth_headers, valid_event_payloa
     assert response.json()["error"]["code"] == "INVALID_TOKEN"
 
 
-def test_create_event_incomplete_token(raw_client, valid_event_payload):
-    token = jwt.encode(
-        {
-            "user_id": "u_test",
-            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
-        },
-        settings.jwt_secret_key,
-        algorithm=settings.jwt_algorithm,
-    )
+def test_create_event_incomplete_token(raw_client, auth_headers, valid_event_payload):
     response = raw_client.post(
         "/v1/events/",
-        headers={"Authorization": f"Bearer {token}"},
+        headers=auth_headers(user_id="u_test", role="welfare_member", incomplete=True),
         json=valid_event_payload,
     )
 

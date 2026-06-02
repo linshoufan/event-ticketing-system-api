@@ -3,17 +3,40 @@ from pathlib import Path
 import pytest
 import yaml
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
+from app.core.config import settings
 from app.core.database import Base, get_db
 from app.core.security import create_access_token
 from app.main import app
 from app.models.user import User
-from app.models import user as user_model  # noqa: F401 確保 models 被載入，Base.metadata 才知道有哪些 table
+from app.models import user as user_model  # noqa: F401 確保 models 被載入
 
-TEST_DATABASE_URL = "sqlite://"
+TEST_DB_NAME = "test_account_db"
+
+def ensure_test_db_exists():
+    """確保 PostgreSQL 測試資料庫存在。"""
+    admin_url = f"postgresql+psycopg2://{settings.account_db_user}:{settings.account_db_password}@{settings.account_db_host}:{settings.account_db_port}/postgres"
+    engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
+    
+    with engine.connect() as conn:
+        result = conn.execute(text(f"SELECT 1 FROM pg_database WHERE datname = '{TEST_DB_NAME}'"))
+        if not result.fetchone():
+            print(f"🛠️ Creating test database: {TEST_DB_NAME}")
+            conn.execute(text(f"CREATE DATABASE {TEST_DB_NAME}"))
+    engine.dispose()
+
+try:
+    ensure_test_db_exists()
+except Exception as e:
+    print(f"⚠️ Warning: Failed to ensure test database exists: {e}")
+
+# 使用 PostgreSQL 測試資料庫
+TEST_DATABASE_URL = (
+    f"postgresql+psycopg2://{settings.account_db_user}:{settings.account_db_password}"
+    f"@{settings.account_db_host}:{settings.account_db_port}/{TEST_DB_NAME}"
+)
 
 
 def clear_database(session):
@@ -31,14 +54,9 @@ def shared_data():
 
 @pytest.fixture(scope="session")
 def db_engine():
-    engine = create_engine(
-        TEST_DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    engine = create_engine(TEST_DATABASE_URL, pool_pre_ping=True)
     Base.metadata.create_all(engine)
     yield engine
-    Base.metadata.drop_all(engine)
 
 
 @pytest.fixture

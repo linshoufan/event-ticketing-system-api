@@ -5,10 +5,10 @@ from unittest.mock import MagicMock
 import pytest
 import yaml
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
+from app.core.config import settings
 from app.core.database import Base, get_db
 from app.core.dependencies import CurrentUser, get_current_user, verify_internal_key
 from app.core.external import AccountClient, EventInfo, get_event_client, get_account_client
@@ -17,7 +17,30 @@ from app.repositories.ticket_repository import TicketRepository
 from app.services.ticket_service import TicketService
 from main import app
 
-TEST_DATABASE_URL = "sqlite://"
+TEST_DB_NAME = "test_ticket_db"
+
+def ensure_test_db_exists():
+    """確保 PostgreSQL 測試資料庫存在。"""
+    admin_url = f"postgresql+psycopg2://{settings.ticket_db_user}:{settings.ticket_db_password}@{settings.ticket_db_host}:{settings.ticket_db_port}/postgres"
+    engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
+    
+    with engine.connect() as conn:
+        result = conn.execute(text(f"SELECT 1 FROM pg_database WHERE datname = '{TEST_DB_NAME}'"))
+        if not result.fetchone():
+            print(f"🛠️ Creating test database: {TEST_DB_NAME}")
+            conn.execute(text(f"CREATE DATABASE {TEST_DB_NAME}"))
+    engine.dispose()
+
+try:
+    ensure_test_db_exists()
+except Exception as e:
+    print(f"⚠️ Warning: Failed to ensure test database exists: {e}")
+
+# 使用 PostgreSQL 測試資料庫
+TEST_DATABASE_URL = (
+    f"postgresql+psycopg2://{settings.ticket_db_user}:{settings.ticket_db_password}"
+    f"@{settings.ticket_db_host}:{settings.ticket_db_port}/{TEST_DB_NAME}"
+)
 
 def clear_database(session):
     """Clean all tables to ensure test isolation."""
@@ -45,14 +68,9 @@ def shared_event(shared_data):
 
 @pytest.fixture(scope="session")
 def db_engine():
-    engine = create_engine(
-        TEST_DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    engine = create_engine(TEST_DATABASE_URL, pool_pre_ping=True)
     Base.metadata.create_all(engine)
     yield engine
-    Base.metadata.drop_all(engine)
 
 @pytest.fixture
 def db_session(db_engine):

@@ -28,31 +28,36 @@ jobs:
           --health-retries 5
 
     env:
+      ENV: local
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      DB_HOST: localhost
-      DB_PORT: 5432
-      DB_USER: test
-      DB_PASSWORD: test
-      DB_NAME: test_event_db
+      EVENT_DB_HOST: localhost
+      EVENT_DB_PORT: 5432
+      EVENT_DB_USER: test
+      EVENT_DB_PASSWORD: test
+      EVENT_DB_NAME: test_event_db
+      JWT_SECRET_KEY: ci-test-secret-key
+      JWT_ALGORITHM: HS256
+      INTERNAL_API_KEY: ci-test-internal-key
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: backend/event/package-lock.json
+          python-version: "3.11"
 
       - name: Install dependencies
-        working-directory: backend/event
-        run: npm ci
+        run: pip install -r requirements.txt
 
-      - name: Build
+      - name: Lint
         working-directory: backend/event
-        run: npm run build
+        run: ruff check app/ tests/
+
+      - name: Run migrations
+        working-directory: backend/event
+        run: alembic upgrade head
 
       - name: Run tests
         working-directory: backend/event
-        run: npm test
+        run: pytest tests/ -v --tb=short
