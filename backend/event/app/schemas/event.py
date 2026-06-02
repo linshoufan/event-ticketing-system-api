@@ -15,6 +15,17 @@ STATUS_MAP = {
 # 反向映射表 (用於寫入)
 REVERSE_STATUS_MAP = {v: k for k, v in STATUS_MAP.items()}
 
+def normalize_status(value: Any) -> int:
+    if isinstance(value, str):
+        if value not in REVERSE_STATUS_MAP:
+            raise ValueError(f"Invalid status string: {value}")
+        return REVERSE_STATUS_MAP[value]
+    if isinstance(value, int):
+        if value not in STATUS_MAP:
+            raise ValueError(f"Invalid status value: {value}")
+        return value
+    raise ValueError(f"Invalid status value: {value}")
+
 class FAQSchema(BaseModel):
     question: str
     answer: str
@@ -88,11 +99,7 @@ class EventBase(BaseModel):
     @field_validator("status", mode="before")
     @classmethod
     def validate_status(cls, v: Any) -> int:
-        if isinstance(v, str):
-            if v not in REVERSE_STATUS_MAP:
-                raise ValueError(f"Invalid status string: {v}")
-            return REVERSE_STATUS_MAP[v]
-        return v
+        return normalize_status(v)
 
 class EventCreate(EventBase):
     @field_validator("eventEndTime", mode="after")
@@ -136,17 +143,26 @@ class EventUpdate(BaseModel):
     def validate_status(cls, v: Any) -> Optional[int]:
         if v is None:
             return None
-        if isinstance(v, str):
-            if v not in REVERSE_STATUS_MAP:
-                raise ValueError(f"Invalid status string: {v}")
-            return REVERSE_STATUS_MAP[v]
-        return v
+        return normalize_status(v)
 
 class BatchUpdateItem(EventUpdate):
     eventId: str = Field(..., alias="eventId")
 
 class BatchUpdateSchema(BaseModel):
     updates: List[BatchUpdateItem]
+
+class BatchCreateSchema(BaseModel):
+    events: List[EventCreate] = Field(..., min_length=1, max_length=100)
+
+class BatchQuerySchema(BaseModel):
+    eventIds: List[str] = Field(..., min_length=1, max_length=200, alias="eventIds")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+class BatchDeleteSchema(BaseModel):
+    eventIds: List[str] = Field(..., min_length=1, max_length=100, alias="eventIds")
+
+    model_config = ConfigDict(populate_by_name=True)
 
 class EventResponse(EventBase):
     eventId: str = Field(

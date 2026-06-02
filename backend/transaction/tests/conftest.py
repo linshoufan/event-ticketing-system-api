@@ -1,14 +1,7 @@
 """pytest 共用 fixtures。
 
-設計：
-- 用真實 Postgres（advisory lock 與 partial index 需要），連線資訊由環境變數帶入
-- 每個 test 前後清空 transactions 表，確保互不干擾
-- 外部服務（Account / Event / Ticket）一律用 fake 物件，透過 dependency_overrides 注入
-- token fixture 用與 settings 相同的 secret 簽 JWT，連帶測到 dependency 的解析
-
-需要的環境變數（CI / 本地都要設）：
-    TRANSACTION_DB_USER / PASSWORD / HOST / PORT / NAME
-    JWT_SECRET_KEY / JWT_ALGORITHM / INTERNAL_API_KEY
+測試使用 SQLite；外部服務（Account / Event / Ticket）一律用 fake 物件，
+透過 dependency_overrides 注入。token fixture 用與 settings 相同的 secret 簽 JWT。
 """
 from __future__ import annotations
 
@@ -19,9 +12,12 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 from jose import jwt
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
-from app.core.database import SessionLocal, engine, Base
+from app.core import database as database_module
+from app.core.database import Base
 from app.core.external import (
     EVENT_STATUS_REGISTERING,
     EventInfo,
@@ -35,6 +31,16 @@ from app.models.transaction import Transaction
 
 NOW = datetime.now(timezone.utc)
 _UNSET = object()
+TEST_DB_PATH = Path("/private/tmp/transaction_service_tests.sqlite")
+TEST_DATABASE_URL = f"sqlite:///{TEST_DB_PATH}"
+
+test_engine = create_engine(
+    TEST_DATABASE_URL,
+    connect_args={"check_same_thread": False, "timeout": 30},
+)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+database_module.engine = test_engine
+database_module.SessionLocal = TestingSessionLocal
 
 
 def _load_shared_mock_data() -> dict:
@@ -57,14 +63,19 @@ def _shared_event(event_id: str) -> dict:
 
 # DB
 @pytest.fixture(scope="session", autouse=True)
-def _ensure_schema():
-    """確保 transactions 表存在（測試環境用 create_all，正式環境走 alembic）。"""
-    Base.metadata.create_all(bind=engine)
-    yield
+def db_engine():
+    if TEST_DB_PATH.exists():
+        TEST_DB_PATH.unlink()
+    Base.metadata.create_all(bind=test_engine)
+    yield test_engine
+    Base.metadata.drop_all(bind=test_engine)
+    test_engine.dispose()
+    if TEST_DB_PATH.exists():
+        TEST_DB_PATH.unlink()
 
 @pytest.fixture
-def db():
-    session = SessionLocal()
+def db(db_engine):
+    session = TestingSessionLocal()
     # 清空
     session.query(Transaction).delete()
     session.commit()

@@ -6,7 +6,7 @@ class Event(Base):
     __tablename__ = "events"
 
     event_id = Column("event_id", String(50), primary_key=True, index=True)
-    name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False, unique=True)
     description = Column(Text, nullable=False)
     location = Column(String(255), nullable=False)
     category = Column(String(50), index=True, nullable=True)
@@ -16,7 +16,7 @@ class Event(Base):
     cancellation_deadline = Column("cancellation_deadline", DateTime(timezone=True), nullable=True)
     latitude = Column(Numeric(9, 6), nullable=True)
     longitude = Column(Numeric(9, 6), nullable=True)
-    checkin_radius_meters = Column("checkinRadiusMeters", Numeric(9, 6), nullable=True)
+    checkin_radius_meters = Column("checkin_radius_meters", Numeric(9, 6), nullable=True)
     event_start_time = Column("event_start_time", DateTime(timezone=True), nullable=False)
     event_end_time = Column("event_end_time", DateTime(timezone=True), nullable=False)
     registration_start = Column("registration_start", DateTime(timezone=True), nullable=False)

@@ -5,18 +5,15 @@ import yaml
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
-from app.core.config import settings
 from app.core.database import Base, get_db
 from app.core.security import create_access_token
 from app.main import app
 from app.models.user import User
 from app.models import user as user_model  # noqa: F401 確保 models 被載入，Base.metadata 才知道有哪些 table
 
-TEST_DATABASE_URL = (
-    f"postgresql+psycopg2://{settings.account_db_user}:{settings.account_db_password}"
-    f"@{settings.account_db_host}:{settings.account_db_port}/test_account_db"
-)
+TEST_DATABASE_URL = "sqlite://"
 
 
 def clear_database(session):
@@ -34,7 +31,11 @@ def shared_data():
 
 @pytest.fixture(scope="session")
 def db_engine():
-    engine = create_engine(TEST_DATABASE_URL)
+    engine = create_engine(
+        TEST_DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(engine)
     yield engine
     Base.metadata.drop_all(engine)

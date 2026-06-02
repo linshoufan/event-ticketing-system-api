@@ -7,6 +7,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -52,6 +53,7 @@ class Transaction(Base):
             "event_id",
             unique=True,
             postgresql_where="status IN ('confirmed','waitlist')",
+            sqlite_where=text("status IN ('confirmed','waitlist')"),
         ),
 
         # 後台查詢「某活動的報名者」會走這個 index

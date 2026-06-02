@@ -1,25 +1,57 @@
-import pytest
+def test_list_events_excludes_ended_by_default(client, valid_event_payload):
+    c = client("welfare_member")
+    c.post("/v1/events/", json={**valid_event_payload, "name": "Open event", "status": "registering"})
+    c.post("/v1/events/", json={**valid_event_payload, "name": "Ended event", "status": "ended"})
 
-def test_list_events_no_filters(client):
-    # 先以 HR 身分建立活動
-    c_admin = client("hr")
-    for i in range(5):
-        payload = {
-            "name": f"Event {i}", "description": "desc", "location": "loc",
-            "eventStartTime": "2026-06-02T09:00:00Z", "eventEndTime": "2026-06-02T18:00:00Z",
-            "registrationStart": "2026-06-01T09:00:00Z", "registrationEnd": "2026-06-01T18:00:00Z",
-            "remainingTickets": 100, "status": "registering"
-        }
-        res = c_admin.post("/v1/events/", json=payload)
-        assert res.status_code == 201
-    
-    # 再切換為一般員工身分讀取列表
-    c_user = client("employee")
-    response = c_user.get("/v1/events/?page=1&limit=10")
+    response = client("employee").get("/v1/events/?page=1&limit=10")
+
     assert response.status_code == 200
-    assert len(response.json()["data"]) == 5
+    statuses = [event["status"] for event in response.json()["data"]]
+    assert "registering" in statuses
+    assert "ended" not in statuses
 
-def test_list_events_unauthorized(client):
-    c = client(role=None)
-    response = c.get("/v1/events/")
+
+def test_list_events_can_filter_ended_explicitly(client, valid_event_payload):
+    c = client("welfare_member")
+    c.post("/v1/events/", json={**valid_event_payload, "name": "Ended event", "status": "ended"})
+
+    response = client("employee").get("/v1/events/?status=ended")
+
+    assert response.status_code == 200
+    assert [event["status"] for event in response.json()["data"]] == ["ended"]
+
+
+def test_list_events_filters_keyword_category_and_dates(client, valid_event_payload):
+    c = client("welfare_member")
+    c.post("/v1/events/", json={
+        **valid_event_payload,
+        "name": "Year End Dinner",
+        "description": "Company gathering",
+        "category": "dining",
+        "eventStartTime": "2026-12-25T18:00:00Z",
+        "eventEndTime": "2026-12-25T22:00:00Z",
+    })
+    c.post("/v1/events/", json={
+        **valid_event_payload,
+        "name": "Q1 Travel",
+        "description": "North coast",
+        "category": "travel",
+        "eventStartTime": "2027-01-15T08:00:00Z",
+        "eventEndTime": "2027-01-15T20:00:00Z",
+    })
+
+    response = client("hr").get(
+        "/v1/events/?keyword=Dinner&category=dining"
+        "&startDate=2026-12-01T00:00:00Z&endDate=2026-12-31T23:59:59Z"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["pagination"]["total"] == 1
+    assert response.json()["data"][0]["name"] == "Year End Dinner"
+
+
+def test_list_events_unauthorized(raw_client):
+    response = raw_client.get("/v1/events/")
+
     assert response.status_code == 401
+    assert response.json()["error"]["code"] == "UNAUTHORIZED"

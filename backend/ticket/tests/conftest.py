@@ -7,8 +7,8 @@ import yaml
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
-from app.core.config import settings
 from app.core.database import Base, get_db
 from app.core.dependencies import CurrentUser, get_current_user, verify_internal_key
 from app.core.external import AccountClient, EventInfo, get_event_client, get_account_client
@@ -17,11 +17,7 @@ from app.repositories.ticket_repository import TicketRepository
 from app.services.ticket_service import TicketService
 from main import app
 
-# Use Real PostgreSQL for consistency across services
-TEST_DATABASE_URL = (
-    f"postgresql+psycopg2://{settings.ticket_db_user}:{settings.ticket_db_password}"
-    f"@{settings.ticket_db_host}:{settings.ticket_db_port}/test_ticket_db"
-)
+TEST_DATABASE_URL = "sqlite://"
 
 def clear_database(session):
     """Clean all tables to ensure test isolation."""
@@ -49,7 +45,11 @@ def shared_event(shared_data):
 
 @pytest.fixture(scope="session")
 def db_engine():
-    engine = create_engine(TEST_DATABASE_URL)
+    engine = create_engine(
+        TEST_DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(engine)
     yield engine
     Base.metadata.drop_all(engine)

@@ -43,7 +43,7 @@ This will start:
 - `transaction-db` (Port 5434)
 - `ticket-db` (Port 5435)
 
-This command does **not** run `seed-data`, because it explicitly starts only the four database services.
+This command only starts the four database services. Docker Compose does not run migrations or seed data automatically.
 
 If you run the full Compose stack instead:
 
@@ -57,40 +57,47 @@ or:
 docker compose up -d
 ```
 
-Compose includes the `seed-data` one-shot service. It runs once, applies migrations/seeding, then exits.
+the result is the same: only the database services are started.
 
 ### 3.3 Initialize Data (Optional)
 
-Run the one-shot seed service from the repo root to apply Python service migrations and populate mock data for all services:
+Apply Python service migrations manually from the repo root:
 
 ```bash
-docker compose run --rm seed-data
+python scripts/migrate_all.py
 ```
 
-Use this command when you started only the DB services, when `seed-data` previously failed, or when you want to sync updated mock data into an existing local database.
-
-The `seed-data` service runs:
-
-- Account migrations
-- Transaction migrations
-- Ticket migrations
-- `python scripts/seed_all.py`
-
-By default, the seed script upserts the records in `scripts/mock_data.yaml` and does not clear existing data.
-
-If you only need to sync mock data from the host machine after the databases are already migrated, you can run:
+Populate mock data manually after migrations:
 
 ```bash
 python scripts/seed_all.py
 ```
 
-To explicitly reset the target mock tables first, run:
+To run migrations and seed mock data in one command:
+
+```bash
+python scripts/migrate_all.py --seed
+```
+
+To reset mock tables while seeding:
+
+```bash
+python scripts/migrate_all.py --reset-seed
+```
+
+By default, the seed script upserts the records in `scripts/mock_data.yaml` and does not clear existing data. To explicitly reset the target mock tables first, run:
 
 ```bash
 python scripts/seed_all.py --reset
 ```
 
 Run seeding again when initializing a fresh environment, after deleting database volumes, or after changing `scripts/mock_data.yaml`.
+
+If you only need to sync updated mock data and migrations are already current, run only:
+
+```bash
+python scripts/seed_all.py
+```
 
 ### 3.4 Start Services
 
@@ -107,13 +114,8 @@ Note: Ensure all services share the same `JWT_SECRET_KEY` and `INTERNAL_API_KEY`
 
 ### 3.5 Troubleshooting & Data Persistence
 
-1. **Volume Persistence**: Using `docker compose down -v` will **delete all persistent database volumes**. If you do this, you must wait for the `seed-data` service to finish or run it manually to repopulate your data.
-2. **Seed Status Verification**: If data is missing (e.g., getting 404 for seeded records), check the status of the initialization container:
-   ```bash
-   docker ps -a --filter name=seed_data_init
-   ```
-   Look for `Exited (0)`. If it exited with a non-zero code, it means migrations or seeding failed.
-3. **Local Execution Sync**: If you run services locally via `uvicorn` (outside Docker) but connect to Docker-hosted databases:
+1. **Volume Persistence**: Using `docker compose down -v` will **delete all persistent database volumes**. If you do this, run migrations and `python scripts/seed_all.py` manually to repopulate your data.
+2. **Local Execution Sync**: If you run services locally via `uvicorn` (outside Docker) but connect to Docker-hosted databases:
    - When the Docker database is reset or cleared, you must manually run the seed script from your host machine:
      ```bash
      python scripts/seed_all.py

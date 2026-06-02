@@ -1,6 +1,7 @@
 import yaml
 import os
 import argparse
+import sys
 from sqlalchemy import create_engine, text, inspect
 from datetime import datetime, timezone, timedelta
 
@@ -35,6 +36,31 @@ def reset_tables(conn, *tables):
     conn.execute(text(f"TRUNCATE TABLE {table_list} RESTART IDENTITY CASCADE"))
 
 
+def preflight_schema(engines):
+    required_tables = {
+        "account": "users",
+        "event": "events",
+        "transaction": "transactions",
+        "ticket": "tickets",
+    }
+    missing = [
+        f"{service}.{table}"
+        for service, table in required_tables.items()
+        if not table_exists(engines[service], table)
+    ]
+    if missing:
+        print("❌ Required tables are missing; seed aborted.")
+        for item in missing:
+            print(f"   - {item}")
+        print("\nRun migrations first:")
+        print("   cd backend/account && alembic upgrade head")
+        print("   cd ../event && alembic upgrade head")
+        print("   cd ../transaction && alembic upgrade head")
+        print("   cd ../ticket && alembic upgrade head")
+        return False
+    return True
+
+
 def seed_all(reset=False):
     base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     yaml_path = os.path.join(base_path, "scripts", "mock_data.yaml")
@@ -46,8 +72,17 @@ def seed_all(reset=False):
     with open(yaml_path, "r") as f:
         data = yaml.safe_load(f)
 
+    engines = {
+        "account": get_engine("account", "account_db", 5433),
+        "event": get_engine("event", "event_db", 5432),
+        "transaction": get_engine("transaction", "transaction_db", 5434),
+        "ticket": get_engine("ticket", "ticket_db", 5435),
+    }
+    if not preflight_schema(engines):
+        return False
+
     # 1. Seed Account Users
-    engine = get_engine("account", "account_db", 5433)
+    engine = engines["account"]
     if table_exists(engine, "users"):
         with engine.connect() as conn:
             if reset:
@@ -68,7 +103,7 @@ def seed_all(reset=False):
         print("⚠️ Warning: 'users' table missing. Skipping Account Seed.")
 
     # 2. Seed Events
-    engine = get_engine("event", "event_db", 5432)
+    engine = engines["event"]
     if table_exists(engine, "events"):
         with engine.connect() as conn:
             if reset:
@@ -81,16 +116,29 @@ def seed_all(reset=False):
                 cancel = parse_datetime(ev.get("cancellation_deadline")) or (start - timedelta(hours=ev.get('cancellation_offset', 24)))
                 
                 conn.execute(text("""
-                    INSERT INTO events (event_id, name, description, location, category, event_start_time, event_end_time, 
-                                       registration_start, registration_end, cancellation_deadline, status, is_draft, 
-                                       latitude, longitude, "checkinRadiusMeters", guest_allowed, ticket_limit, remaining_tickets)
+                    INSERT INTO events (event_id, name, description, location, category, event_start_time, event_end_time,
+                                       registration_start, registration_end, cancellation_deadline, status, is_draft,
+                                       latitude, longitude, checkin_radius_meters, guest_allowed, ticket_limit, remaining_tickets)
                     VALUES (:id, :name, :description, :loc, :cat, :start, :end, :rs, :re, :cd, :status, :is_draft,
                             :lat, :lon, :radius, :guest_allowed, :ticket_limit, :remaining_tickets)
                     ON CONFLICT (event_id) DO UPDATE SET
                         name = EXCLUDED.name,
+                        description = EXCLUDED.description,
                         location = EXCLUDED.location,
+                        category = EXCLUDED.category,
                         event_start_time = EXCLUDED.event_start_time,
                         event_end_time = EXCLUDED.event_end_time,
+                        registration_start = EXCLUDED.registration_start,
+                        registration_end = EXCLUDED.registration_end,
+                        cancellation_deadline = EXCLUDED.cancellation_deadline,
+                        status = EXCLUDED.status,
+                        is_draft = EXCLUDED.is_draft,
+                        latitude = EXCLUDED.latitude,
+                        longitude = EXCLUDED.longitude,
+                        checkin_radius_meters = EXCLUDED.checkin_radius_meters,
+                        guest_allowed = EXCLUDED.guest_allowed,
+                        ticket_limit = EXCLUDED.ticket_limit,
+                        remaining_tickets = EXCLUDED.remaining_tickets,
                         updated_at = NOW()
                 """), {
                     "id": ev['id'], "name": ev['name'], "loc": ev['location'], "cat": ev['category'], 
@@ -108,7 +156,7 @@ def seed_all(reset=False):
         print("⚠️ Warning: 'events' table missing. Skipping Event Seed.")
 
     # 3. Seed Transactions
-    engine = get_engine("transaction", "transaction_db", 5434)
+    engine = engines["transaction"]
     if table_exists(engine, "transactions"):
         with engine.connect() as conn:
             if reset:
@@ -126,7 +174,7 @@ def seed_all(reset=False):
         print("✅ Seeded Transactions")
 
     # 4. Seed Tickets
-    engine = get_engine("ticket", "ticket_db", 5435)
+    engine = engines["ticket"]
     if table_exists(engine, "tickets"):
         with engine.connect() as conn:
             if reset:
@@ -143,10 +191,12 @@ def seed_all(reset=False):
                        "status": tk['status'], "cia": checked_in})
             conn.commit()
         print("✅ Seeded Tickets")
+    return True
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Seed shared mock data.")
     parser.add_argument("--reset", action="store_true")
     args = parser.parse_args()
-    seed_all(reset=args.reset)
+    if not seed_all(reset=args.reset):
+        sys.exit(1)
     print("\n🚀 Mock data is synchronized!")

@@ -10,7 +10,9 @@
 from __future__ import annotations
 
 import logging
+import threading
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
@@ -29,6 +31,8 @@ from app.services import eligibility_service
 from app.services.eligibility_service import EligibilityResult
 
 logger = logging.getLogger(__name__)
+_SQLITE_LOCKS: dict[str, threading.Lock] = {}
+_SQLITE_LOCKS_GUARD = threading.Lock()
 
 # 內部 helpers
 def _new_transaction_id() -> str:
@@ -42,10 +46,30 @@ def _acquire_event_lock(db: Session, event_id: str) -> None:
     (int4, int4) 形式的 advisory lock key。
     Lock 在 commit / rollback 時自動釋放。
     """
+    bind = db.get_bind()
+    if bind.dialect.name == "sqlite":
+        return
+
     db.execute(
         text("SELECT pg_advisory_xact_lock(hashtext(:event_id), 0)"),
         {"event_id": event_id},
     )
+
+
+@contextmanager
+def _event_capacity_lock(db: Session, event_id: str):
+    if db.get_bind().dialect.name == "sqlite":
+        with _SQLITE_LOCKS_GUARD:
+            lock = _SQLITE_LOCKS.setdefault(event_id, threading.Lock())
+        lock.acquire()
+        try:
+            yield
+        finally:
+            lock.release()
+        return
+
+    _acquire_event_lock(db, event_id)
+    yield
 
 
 def _count_confirmed(db: Session, event_id: str) -> int:
@@ -178,35 +202,34 @@ def create_registration(
 
     # === Step 3: 開 transaction + advisory lock ===
     try:
-        _acquire_event_lock(db, event_id)
-
-        # 在 lock 下再 count 一次（lock 外的 count 不算數）
-        if event.has_capacity_limit:
-            confirmed_now = _count_confirmed(db, event_id)
-            if confirmed_now < event.ticket_limit:
+        with _event_capacity_lock(db, event_id):
+            # 在 lock 下再 count 一次（lock 外的 count 不算數）
+            if event.has_capacity_limit:
+                confirmed_now = _count_confirmed(db, event_id)
+                if confirmed_now < event.ticket_limit:
+                    tx_status = "confirmed"
+                    waitlist_number = None
+                else:
+                    tx_status = "waitlist"
+                    waitlist_number = _next_waitlist_number(db, event_id)
+            else:
                 tx_status = "confirmed"
                 waitlist_number = None
-            else:
-                tx_status = "waitlist"
-                waitlist_number = _next_waitlist_number(db, event_id)
-        else:
-            tx_status = "confirmed"
-            waitlist_number = None
 
-        tx = Transaction(
-            transaction_id=_new_transaction_id(),
-            user_id=user_id,
-            event_id=event_id,
-            status=tx_status,
-            waitlist_number=waitlist_number,
-            guest_count=guest_count,
-            diet_type=diet_type,
-            self_driving=self_driving,
-            ticket_id=None,  # 等 commit 後再 issue
-        )
-        db.add(tx)
-        db.commit()
-        db.refresh(tx)
+            tx = Transaction(
+                transaction_id=_new_transaction_id(),
+                user_id=user_id,
+                event_id=event_id,
+                status=tx_status,
+                waitlist_number=waitlist_number,
+                guest_count=guest_count,
+                diet_type=diet_type,
+                self_driving=self_driving,
+                ticket_id=None,  # 等 commit 後再 issue
+            )
+            db.add(tx)
+            db.commit()
+            db.refresh(tx)
     except IntegrityError as exc:
         # 唯一觸發點：partial unique index（短時間內重複報名的 race）
         db.rollback()
@@ -299,20 +322,19 @@ def cancel_registration(
     old_ticket_id = tx.ticket_id
     promoted_tx: Transaction | None = None
 
-    _acquire_event_lock(db, tx.event_id)
+    with _event_capacity_lock(db, tx.event_id):
+        tx.status = "cancelled"
+        tx.cancelled_at = utcnow()
+        tx.ticket_id = None  # confirmed 才會有 ticket_id；清掉避免之後查詢時誤用
+        tx.updated_at = utcnow()
 
-    tx.status = "cancelled"
-    tx.cancelled_at = utcnow()
-    tx.ticket_id = None  # confirmed 才會有 ticket_id；清掉避免之後查詢時誤用
-    tx.updated_at = utcnow()
+        if old_status == "confirmed":
+            promoted_tx = _promote_next_waitlist(db, tx.event_id)
 
-    if old_status == "confirmed":
-        promoted_tx = _promote_next_waitlist(db, tx.event_id)
-
-    db.commit()
-    db.refresh(tx)
-    if promoted_tx is not None:
-        db.refresh(promoted_tx)
+        db.commit()
+        db.refresh(tx)
+        if promoted_tx is not None:
+            db.refresh(promoted_tx)
 
     # === Step 4: 對外做 ticket 操作（void 舊的 + issue 新的）===
     if old_ticket_id:

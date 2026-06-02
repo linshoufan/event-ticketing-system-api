@@ -11,7 +11,7 @@ def get_current_user_role(
     if not auth:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": "NOT_LOGGED_IN", "message": "Not logged in"},
+            detail={"code": "UNAUTHORIZED", "message": "Authorization header is required"},
         )
 
     token = auth.credentials

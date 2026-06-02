@@ -17,10 +17,12 @@ class EventRepository:
         limit: int, 
         keyword: Optional[str] = None, 
         category: Optional[str] = None, 
-        status: Optional[int] = None
+        status: Optional[int] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> Tuple[List[Event], int]:
         query = self.db.query(Event)
-        query = self._apply_filters(query, keyword, category, status)
+        query = self._apply_filters(query, keyword, category, status, start_date, end_date)
         
         total = query.count()
         events = query.order_by(Event.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
@@ -32,10 +34,12 @@ class EventRepository:
         query: Query, 
         keyword: Optional[str] = None, 
         category: Optional[str] = None, 
-        status: Optional[int] = None
+        status: Optional[int] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> Query:
-        # Default exclude ended events (status 4)
-        query = query.filter(Event.status != 4)
+        if status is None:
+            query = query.filter(Event.status != 4)
         
         if keyword:
             query = query.filter(
@@ -50,8 +54,17 @@ class EventRepository:
             
         if status is not None:
             query = query.filter(Event.status == status)
+
+        if start_date:
+            query = query.filter(Event.event_start_time >= start_date)
+
+        if end_date:
+            query = query.filter(Event.event_start_time <= end_date)
             
         return query
+
+    def get_by_ids(self, event_ids: List[str]) -> List[Event]:
+        return self.db.query(Event).filter(Event.event_id.in_(event_ids)).all()
 
     def create(self, event: Event) -> Event:
         self.db.add(event)

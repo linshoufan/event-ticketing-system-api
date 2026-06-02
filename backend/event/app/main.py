@@ -1,4 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from .routers import events, internal
@@ -24,6 +26,19 @@ async def custom_http_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": exc.detail if isinstance(exc.detail, dict) else {"code": "ERROR", "message": exc.detail}},
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=400,
+        content=jsonable_encoder({
+            "error": {
+                "code": "BAD_REQUEST",
+                "message": "Request validation failed",
+                "details": exc.errors(),
+            }
+        }),
     )
 
 # CORS setup

@@ -1,36 +1,42 @@
-import pytest
-
-def test_update_event_success(client):
+def test_update_event_success(client, valid_event_payload):
     c = client("welfare_member")
-    payload = {
-        "name": "Update Test", "description": "desc", "location": "loc",
-        "eventStartTime": "2026-06-02T09:00:00Z", "eventEndTime": "2026-06-02T18:00:00Z",
-        "registrationStart": "2026-06-01T09:00:00Z", "registrationEnd": "2026-06-01T18:00:00Z",
-        "remainingTickets": 100
-    }
-    res = c.post("/v1/events/", json=payload)
-    event_id = res.json()["data"]["eventId"]
-    
-    update_payload = {"ticketLimit": 500, "status": "closed"}
-    patch_res = c.patch(f"/v1/events/{event_id}", json=update_payload)
+    create_res = c.post("/v1/events/", json={**valid_event_payload, "name": "Update Test"})
+    event_id = create_res.json()["data"]["eventId"]
+
+    patch_res = c.patch(f"/v1/events/{event_id}", json={"ticketLimit": 500, "status": "closed"})
+
     assert patch_res.status_code == 200
-    
-    get_res = c.get(f"/v1/events/{event_id}")
+    assert patch_res.json()["data"]["updated"] is True
+
+    get_res = client("employee").get(f"/v1/events/{event_id}")
     assert get_res.json()["data"]["ticketLimit"] == 500
     assert get_res.json()["data"]["status"] == "closed"
 
-def test_update_event_forbidden_for_employee(client):
-    # 先以 HR 身分建立活動
-    c_admin = client("hr")
-    res = c_admin.post("/v1/events/", json={
-        "name": "Admin Event", "description": "desc", "location": "loc",
-        "eventStartTime": "2026-06-02T09:00:00Z", "eventEndTime": "2026-06-02T18:00:00Z",
-        "registrationStart": "2026-06-01T09:00:00Z", "registrationEnd": "2026-06-01T18:00:00Z",
-        "remainingTickets": 100
-    })
-    event_id = res.json()["data"]["eventId"]
-    
-    # 再以一般員工身分嘗試更新
-    c_user = client("employee")
-    response = c_user.patch(f"/v1/events/{event_id}", json={"name": "Hacked"})
+
+def test_update_event_forbidden_for_employee(client, valid_event_payload):
+    c_admin = client("welfare_member")
+    create_res = c_admin.post("/v1/events/", json={**valid_event_payload, "name": "Protected Event"})
+    event_id = create_res.json()["data"]["eventId"]
+
+    response = client("employee").patch(f"/v1/events/{event_id}", json={"name": "Hacked"})
+
     assert response.status_code == 403
+    assert response.json()["error"]["code"] == "FORBIDDEN"
+
+
+def test_update_event_forbidden_for_hr(client, valid_event_payload):
+    c_admin = client("welfare_member")
+    create_res = c_admin.post("/v1/events/", json={**valid_event_payload, "name": "Protected Event"})
+    event_id = create_res.json()["data"]["eventId"]
+
+    response = client("hr").patch(f"/v1/events/{event_id}", json={"name": "Hacked"})
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "FORBIDDEN"
+
+
+def test_update_event_not_found(client):
+    response = client("welfare_member").patch("/v1/events/non_existent_id", json={"name": "Missing"})
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "EVENT_NOT_FOUND"
