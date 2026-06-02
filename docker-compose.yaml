@@ -1,0 +1,179 @@
+x-api-base: &api-base
+  build:
+    context: .
+  image: event-ticketing-api:local
+  restart: unless-stopped
+
+services:
+  account-api:
+    <<: *api-base
+    container_name: account_api_local
+    environment:
+      SERVICE: account
+      ENV: ${ENV:-local}
+      ACCOUNT_DB_HOST: account-db
+      ACCOUNT_DB_PORT: 5432
+      ACCOUNT_DB_USER: ${ACCOUNT_DB_USER}
+      ACCOUNT_DB_PASSWORD: ${ACCOUNT_DB_PASSWORD}
+      ACCOUNT_DB_NAME: ${ACCOUNT_DB_NAME}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-480}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8000/v1/auth/callback}
+    ports:
+      - "8000:8080"
+    depends_on:
+      account-db:
+        condition: service_healthy
+
+  event-api:
+    <<: *api-base
+    container_name: event_api_local
+    environment:
+      SERVICE: event
+      ENV: ${ENV:-local}
+      EVENT_DB_HOST: event-db
+      EVENT_DB_PORT: 5432
+      EVENT_DB_USER: ${EVENT_DB_USER}
+      EVENT_DB_PASSWORD: ${EVENT_DB_PASSWORD}
+      EVENT_DB_NAME: ${EVENT_DB_NAME}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+    ports:
+      - "8003:8080"
+    depends_on:
+      event-db:
+        condition: service_healthy
+
+  transaction-api:
+    <<: *api-base
+    container_name: transaction_api_local
+    environment:
+      SERVICE: transaction
+      ENV: ${ENV:-local}
+      TRANSACTION_DB_HOST: transaction-db
+      TRANSACTION_DB_PORT: 5432
+      TRANSACTION_DB_USER: ${TRANSACTION_DB_USER}
+      TRANSACTION_DB_PASSWORD: ${TRANSACTION_DB_PASSWORD}
+      TRANSACTION_DB_NAME: ${TRANSACTION_DB_NAME}
+      ACCOUNT_SERVICE_URL: http://account-api:8080
+      EVENT_SERVICE_URL: http://event-api:8080
+      TICKET_SERVICE_URL: http://ticket-api:8080
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+    ports:
+      - "8002:8080"
+    depends_on:
+      transaction-db:
+        condition: service_healthy
+      account-api:
+        condition: service_started
+      event-api:
+        condition: service_started
+      ticket-api:
+        condition: service_started
+
+  ticket-api:
+    <<: *api-base
+    container_name: ticket_api_local
+    environment:
+      SERVICE: ticket
+      ENV: ${ENV:-local}
+      TICKET_DB_HOST: ticket-db
+      TICKET_DB_PORT: 5432
+      TICKET_DB_USER: ${TICKET_DB_USER}
+      TICKET_DB_PASSWORD: ${TICKET_DB_PASSWORD}
+      TICKET_DB_NAME: ${TICKET_DB_NAME}
+      ACCOUNT_SERVICE_URL: http://account-api:8080
+      EVENT_SERVICE_URL: http://event-api:8080
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+    ports:
+      - "8001:8080"
+    depends_on:
+      ticket-db:
+        condition: service_healthy
+      account-api:
+        condition: service_started
+      event-api:
+        condition: service_started
+
+  account-db:
+    image: postgres:15-alpine
+    container_name: account_postgres_local
+    environment:
+      POSTGRES_USER: ${ACCOUNT_DB_USER}
+      POSTGRES_PASSWORD: ${ACCOUNT_DB_PASSWORD}
+      POSTGRES_DB: ${ACCOUNT_DB_NAME}
+    ports:
+      - "${ACCOUNT_DB_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ACCOUNT_DB_USER} -d ${ACCOUNT_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  event-db:
+    image: postgres:15-alpine
+    container_name: event_postgres_local
+    environment:
+      POSTGRES_USER: ${EVENT_DB_USER}
+      POSTGRES_PASSWORD: ${EVENT_DB_PASSWORD}
+      POSTGRES_DB: ${EVENT_DB_NAME}
+    ports:
+      - "${EVENT_DB_PORT}:5432"
+    volumes:
+      - event_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${EVENT_DB_USER} -d ${EVENT_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  transaction-db:
+    image: postgres:15-alpine
+    container_name: transaction_postgres_local
+    environment:
+      POSTGRES_USER: ${TRANSACTION_DB_USER}
+      POSTGRES_PASSWORD: ${TRANSACTION_DB_PASSWORD}
+      POSTGRES_DB: ${TRANSACTION_DB_NAME}
+    ports:
+      - "${TRANSACTION_DB_PORT}:5432"
+    volumes:
+      - transaction_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TRANSACTION_DB_USER} -d ${TRANSACTION_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  ticket-db:
+    image: postgres:15-alpine
+    container_name: ticket_postgres_local
+    environment:
+      POSTGRES_USER: ${TICKET_DB_USER}
+      POSTGRES_PASSWORD: ${TICKET_DB_PASSWORD}
+      POSTGRES_DB: ${TICKET_DB_NAME}
+    ports:
+      - "${TICKET_DB_PORT}:5432"
+    volumes:
+      - ticket_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TICKET_DB_USER} -d ${TICKET_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  event_postgres_data:
+  transaction_postgres_data:
+  ticket_postgres_data:

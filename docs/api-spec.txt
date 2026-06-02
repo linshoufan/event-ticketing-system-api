@@ -60,45 +60,55 @@ Content-Type: application/json
 
 
 ==============================
-Auth（第三方登入）
+Auth（公司員工資料庫登入）
 ==============================
 
 
 【 登入流程 】
 
-1. 前端顯示「使用 Google 帳號登入」按鈕
-2. 使用者點擊後，導向 Google 登入頁面
-3. 使用者完成登入，Google 將使用者導回 callback URL
-4. 前端從 callback URL 取得 jwt_token
-5. 將 jwt_token 存起來，之後每次打 API 都帶在 Header
-
-【 GET /auth/login 】
-取得 Google 登入的導向網址
-Roles: 不需要 token
-
-Response 200
-{
-  "data": {
-    "loginUrl": "https://accounts.google.com/o/oauth2/v2/auth?..."
-  }
-}
+1. 前端顯示四個按鈕：第一次登入 / 員工登入 / 福委登入 / HR 登入
+2. 點擊後輸入員工編號和密碼
+3. 打 POST /auth/login，帶 employeeId、password、role（第一次登入 role 帶 null）
+4. Account Service 去外部員工 DB 驗證身份
+5. 驗過後查自己的 DB，如果有帶 role 就確認是否吻合
+6. 第一次登入就建立 user，role 預設 employee
+7. 發 JWT 回去，之後每次打 API 都帶在 Header
 
 
 ------------------------------
 
-【 GET /auth/callback 】
-第三方登入完成後的 callback，由前端接收 token
+【 POST /auth/login 】
+登入
 Roles: 不需要 token
 
-Query Params
-?code=xxxxx（第三方回傳的授權碼，由後端換成 jwt_token）
+Request Body
+{
+  "employeeId": "1123213",
+  "password": "employee",
+  "role": "welfare_member"    // 第一次登入帶 null
+}
 
 Response 200
 {
   "data": {
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "role": "employee"
+    "role": "welfare_member"
   }
+}
+
+Response 404
+{
+  "error": { "code": "EMPLOYEE_NOT_FOUND", "message": "Employee not found" }
+}
+
+Response 401
+{
+  "error": { "code": "INVALID_CREDENTIALS", "message": "Invalid password" }
+}
+
+Response 403
+{
+  "error": { "code": "INVALID_ROLE", "message": "Role does not match" }
 }
 
 

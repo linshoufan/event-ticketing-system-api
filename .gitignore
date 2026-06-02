@@ -47,6 +47,7 @@ nosetests.xml
 coverage.xml
 *.cover
 *.py.cover
+*.lcov
 .hypothesis/
 .pytest_cache/
 cover/
@@ -60,6 +61,10 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
 
 # Flask stuff:
 instance/
@@ -122,13 +127,14 @@ ipython_config.py
 # pixi.lock
 #   Pixi creates a virtual environment in the .pixi directory, just like venv module creates one
 #   in the .venv directory. It is recommended not to include this directory in version control.
-.pixi
+.pixi/*
+!.pixi/config.toml
 
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
 __pypackages__/
 
 # Celery stuff
-celerybeat-schedule
+celerybeat-schedule*
 celerybeat.pid
 
 # Redis
@@ -216,3 +222,36 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+.env
+venv/
+
+# SPEC
+* Spec.md
+
+# Node modules
+node_modules/
+
+.DS_Store
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

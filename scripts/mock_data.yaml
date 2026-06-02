@@ -1,0 +1,336 @@
+employees:
+  - employee_id: "1000001"
+    password: "password123"
+    name: "Andy Hsu"
+    email: "andy@company.com"
+  - employee_id: "1000002"
+    password: "password123"
+    name: "Sarah Li"
+    email: "sarah@company.com"
+  - employee_id: "1000003"
+    password: "pw"
+    name: "Role Test User"
+    email: "role@company.com"
+  - employee_id: "1000099"
+    password: "pw"
+    name: "Unique Login User"
+    email: "unique@company.com"
+  - employee_id: "user_005"
+    password: "password123"
+    name: "User 005"
+    email: "user_005@company.com"
+  - employee_id: "user_006"
+    password: "password123"
+    name: "User 006"
+    email: "user_006@company.com"
+  - employee_id: "user_007"
+    password: "password123"
+    name: "User 007"
+    email: "user_007@company.com"
+  - employee_id: "welfare_001"
+    password: "password123"
+    name: "Welfare Member 001"
+    email: "welfare_001@company.com"
+  - employee_id: "hr_001"
+    password: "password123"
+    name: "HR 001"
+    email: "hr_001@company.com"
+  - employee_id: "locked_001"
+    password: "password123"
+    name: "Locked User 001"
+    email: "locked_001@company.com"
+
+users:
+  - user_id: "1000001"
+    name: "Andy Hsu"
+    email: "andy@company.com"
+    role: "employee"
+    registration_status: "active"
+    diet_type: "non-veg"
+    self_driving: false
+  - user_id: "1000002"
+    name: "Sarah Li"
+    email: "sarah@company.com"
+    role: "welfare_member"
+    registration_status: "active"
+    diet_type: "non-veg"
+    self_driving: false
+  - user_id: "1000003"
+    name: "Role Test User"
+    email: "role@company.com"
+    role: "employee"
+    registration_status: "active"
+    diet_type: "non-veg"
+    self_driving: false
+  - user_id: "1000099"
+    name: "Unique Login User"
+    email: "unique@company.com"
+    role: "employee"
+    registration_status: "active"
+    diet_type: "non-veg"
+    self_driving: false
+  - user_id: "user_005"
+    email: "user_005@company.com"
+    role: "employee"
+    registration_status: "active"
+    diet_type: "non-veg"
+    self_driving: false
+  - user_id: "user_006"
+    email: "user_006@company.com"
+    role: "employee"
+    registration_status: "active"
+    diet_type: "veg"
+    self_driving: true
+  - user_id: "user_007"
+    email: "user_007@company.com"
+    role: "employee"
+    registration_status: "active"
+    diet_type: "non-veg"
+    self_driving: false
+  - user_id: "welfare_001"
+    email: "welfare_001@company.com"
+    role: "welfare_member"
+    registration_status: "active"
+    diet_type: "non-veg"
+    self_driving: false
+  - user_id: "hr_001"
+    email: "hr_001@company.com"
+    role: "hr"
+    registration_status: "active"
+    diet_type: "non-veg"
+    self_driving: false
+  - user_id: "locked_001"
+    email: "locked_001@company.com"
+    role: "employee"
+    registration_status: "locked"
+    diet_type: "non-veg"
+    self_driving: false
+
+events:
+  - id: "event_001"
+    name: "夏日烤肉趴"
+    location: "台北 101 頂樓"
+    category: "outdoor"
+    guest_allowed: false
+    ticket_limit: 200
+    remaining_tickets: 200
+    status: 1
+    lat: 25.0339
+    lon: 121.5644
+    radius: 500
+    time_offset: -1
+    duration: 4
+    registration_offset: -10
+  - id: "event_002"
+    name: "部門聚餐"
+    location: "知名火鍋店"
+    category: "food"
+    guest_allowed: false
+    ticket_limit: 50
+    remaining_tickets: 0
+    status: 4
+    lat: 25.0478
+    lon: 121.5170
+    radius: 200
+    time_offset: -120
+    duration: 3
+    registration_offset: -15
+  - id: "event_003"
+    name: "週五電影之夜"
+    location: "公司大會議室"
+    category: "culture"
+    guest_allowed: true
+    ticket_limit: null
+    remaining_tickets: 0
+    status: 1
+    lat: 25.0339
+    lon: 121.5644
+    radius: 100
+    time_offset: 48
+    duration: 3
+    registration_offset: -5
+  - id: "event_004"
+    name: "員工家庭日"
+    location: "新竹中央公園"
+    category: "family"
+    guest_allowed: true
+    ticket_limit: 300
+    remaining_tickets: 300
+    status: 1
+    lat: 24.8066
+    lon: 120.9687
+    radius: 300
+    time_offset: 168
+    duration: 8
+    registration_offset: -5
+    cancellation_offset: 48
+  - id: "event_005"
+    name: "Event event_005"
+    location: "Test Venue"
+    category: "test"
+    guest_allowed: false
+    ticket_limit: 5
+    remaining_tickets: 5
+    status: 1
+    lat: 25.0339
+    lon: 121.5644
+    radius: 500
+    time_offset: 240
+    duration: 4
+    registration_offset: -1
+    cancellation_offset: 72
+  - id: "event_006"
+    name: "Event event_006"
+    location: "Race Venue"
+    category: "test"
+    guest_allowed: false
+    ticket_limit: 1
+    remaining_tickets: 1
+    status: 1
+    lat: 25.0339
+    lon: 121.5644
+    radius: 500
+    time_offset: 240
+    duration: 4
+    registration_offset: -1
+    cancellation_offset: 72
+  - id: "event_007"
+    name: "Event event_007"
+    location: "Mixed Flow Venue"
+    category: "test"
+    guest_allowed: false
+    ticket_limit: 3
+    remaining_tickets: 3
+    status: 1
+    lat: 25.0339
+    lon: 121.5644
+    radius: 500
+    time_offset: 240
+    duration: 4
+    registration_offset: -1
+    cancellation_offset: 72
+  - id: "event_008"
+    name: "Family Day"
+    location: "Company Campus"
+    category: "family"
+    guest_allowed: true
+    ticket_limit: 100
+    remaining_tickets: 42
+    status: 1
+    lat: 25.0339
+    lon: 121.5644
+    radius: 500
+    time_offset: 432
+    duration: 8
+    registration_offset: -30
+    cancellation_offset: 456
+  - id: "event_009"
+    name: "Open Lecture"
+    location: "Auditorium"
+    category: "culture"
+    guest_allowed: false
+    ticket_limit: null
+    remaining_tickets: 0
+    status: 1
+    lat: 25.0339
+    lon: 121.5644
+    radius: 500
+    time_offset: 432
+    duration: 8
+    registration_offset: -30
+  - id: "event_010"
+    name: "X"
+    location: "Test Room"
+    category: "test"
+    guest_allowed: false
+    ticket_limit: null
+    remaining_tickets: 0
+    status: 1
+    lat: 25.0339
+    lon: 121.5644
+    radius: 500
+    time_offset: 432
+    duration: 8
+    registration_offset: -30
+  - id: "event_011"
+    name: "2026跨年喝酒BBQ同樂會"
+    description: "如題"
+    location: "公司頂樓"
+    category: "娛樂"
+    guest_allowed: true
+    ticket_limit: null
+    remaining_tickets: 200
+    status: 1
+    is_draft: false
+    lat: 25.0339
+    lon: 121.5644
+    radius: 500
+    event_start_time: "2026-12-31T17:00:00Z"
+    event_end_time: "2026-12-31T21:00:00Z"
+    registration_start: "2026-10-05T00:00:00Z"
+    registration_end: "2026-11-05T23:59:59Z"
+    created_at: "2026-10-01T12:00:00Z"
+
+transactions:
+  - id: "tx_001"
+    event_id: "event_001"
+    user_id: "1000001"
+    status: "confirmed"
+    ticket_id: "ticket_001"
+  - id: "tx_002"
+    event_id: "event_002"
+    user_id: "1000001"
+    status: "confirmed"
+    ticket_id: "ticket_002"
+  - id: "tx_003"
+    event_id: "event_003"
+    user_id: "1000001"
+    status: "confirmed"
+    ticket_id: null
+  - id: "tx_004"
+    event_id: "event_004"
+    user_id: "1000001"
+    status: "confirmed"
+    ticket_id: "ticket_003"
+  - id: "tx_005"
+    event_id: "event_005"
+    user_id: "user_005"
+    status: "confirmed"
+    ticket_id: "ticket_004"
+  - id: "tx_006"
+    event_id: "event_005"
+    user_id: "user_006"
+    status: "confirmed"
+    ticket_id: "ticket_005"
+  - id: "tx_007"
+    event_id: "event_005"
+    user_id: "user_007"
+    status: "waitlist"
+    ticket_id: null
+
+tickets:
+  - id: "ticket_001"
+    event_id: "event_001"
+    user_id: "1000001"
+    transaction_id: "tx_001"
+    status: "unused"
+  - id: "ticket_002"
+    event_id: "event_002"
+    user_id: "1000001"
+    transaction_id: "tx_002"
+    status: "used"
+  - id: "ticket_003"
+    event_id: "event_004"
+    user_id: "1000001"
+    transaction_id: "tx_004"
+    status: "unused"
+  - id: "ticket_004"
+    event_id: "event_005"
+    user_id: "user_005"
+    transaction_id: "tx_005"
+    status: "unused"
+  - id: "ticket_005"
+    event_id: "event_005"
+    user_id: "user_006"
+    transaction_id: "tx_006"
+    status: "unused"
