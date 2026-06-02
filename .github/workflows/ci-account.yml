@@ -5,6 +5,7 @@ on:
     branches: [dev, main]
     paths:
       - "backend/account/**"
+      - "scripts/**"
       - "requirements.txt"
       - ".github/workflows/ci-account.yml"
 

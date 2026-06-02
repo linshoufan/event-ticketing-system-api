@@ -1,0 +1,58 @@
+name: CI - Event Service
+
+on:
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - "backend/event/**"
+      - "scripts/**"
+      - ".github/workflows/ci-event.yml"
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_event_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: test
+      DB_PASSWORD: test
+      DB_NAME: test_event_db
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: backend/event/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend/event
+        run: npm ci
+
+      - name: Build
+        working-directory: backend/event
+        run: npm run build
+
+      - name: Run tests
+        working-directory: backend/event
+        run: npm test

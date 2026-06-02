@@ -1,25 +1,23 @@
 """pytest 共用 fixtures。
 
-設計：
-- 用真實 Postgres（advisory lock 與 partial index 需要），連線資訊由環境變數帶入
-- 每個 test 前後清空 transactions 表，確保互不干擾
-- 外部服務（Account / Event / Ticket）一律用 fake 物件，透過 dependency_overrides 注入
-- token fixture 用與 settings 相同的 secret 簽 JWT，連帶測到 dependency 的解析
-
-需要的環境變數（CI / 本地都要設）：
-    TRANSACTION_DB_USER / PASSWORD / HOST / PORT / NAME
-    JWT_SECRET_KEY / JWT_ALGORITHM / INTERNAL_API_KEY
+測試使用 SQLite；外部服務（Account / Event / Ticket）一律用 fake 物件，
+透過 dependency_overrides 注入。token fixture 用與 settings 相同的 secret 簽 JWT。
 """
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
+import yaml
 from fastapi.testclient import TestClient
 from jose import jwt
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
-from app.core.database import SessionLocal, engine, Base
+from app.core import database as database_module
+from app.core.database import Base
 from app.core.external import (
     EVENT_STATUS_REGISTERING,
     EventInfo,
@@ -32,23 +30,59 @@ from app.main import app
 from app.models.transaction import Transaction
 
 NOW = datetime.now(timezone.utc)
+_UNSET = object()
+TEST_DB_PATH = Path("/private/tmp/transaction_service_tests.sqlite")
+TEST_DATABASE_URL = f"sqlite:///{TEST_DB_PATH}"
+
+test_engine = create_engine(
+    TEST_DATABASE_URL,
+    connect_args={"check_same_thread": False, "timeout": 30},
+)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+database_module.engine = test_engine
+database_module.SessionLocal = TestingSessionLocal
+
+
+def _load_shared_mock_data() -> dict:
+    yaml_path = Path(__file__).resolve().parents[3] / "scripts" / "mock_data.yaml"
+    with yaml_path.open("r") as f:
+        return yaml.safe_load(f)
+
+
+_SHARED_MOCK_DATA = _load_shared_mock_data()
+_SHARED_USERS = {u["user_id"]: u for u in _SHARED_MOCK_DATA.get("users", [])}
+_SHARED_EVENTS = {e["id"]: e for e in _SHARED_MOCK_DATA.get("events", [])}
+
+
+def _shared_user(user_id: str) -> dict:
+    return _SHARED_USERS.get(user_id, {})
+
+
+def _shared_event(event_id: str) -> dict:
+    return _SHARED_EVENTS.get(event_id, {})
 
 # DB
 @pytest.fixture(scope="session", autouse=True)
-def _ensure_schema():
-    """確保 transactions 表存在（測試環境用 create_all，正式環境走 alembic）。"""
-    Base.metadata.create_all(bind=engine)
-    yield
+def db_engine():
+    if TEST_DB_PATH.exists():
+        TEST_DB_PATH.unlink()
+    Base.metadata.create_all(bind=test_engine)
+    yield test_engine
+    Base.metadata.drop_all(bind=test_engine)
+    test_engine.dispose()
+    if TEST_DB_PATH.exists():
+        TEST_DB_PATH.unlink()
 
 @pytest.fixture
-def db():
-    session = SessionLocal()
+def db(db_engine):
+    session = TestingSessionLocal()
     # 清空
     session.query(Transaction).delete()
     session.commit()
     try:
         yield session
     finally:
+        session.rollback()
         session.query(Transaction).delete()
         session.commit()
         session.close()
@@ -61,8 +95,15 @@ class FakeAccountClient:
         self.autofill_updates: list[dict] = []
         self.invalidated: list[str] = []
 
-    def set_profile(self, user_id, role="employee", locked=False,
-                    diet="non-veg", driving=False, username=None):
+    def set_profile(self, user_id, role=None, locked=False,
+                    diet=None, driving=None, username=None):
+        shared = _shared_user(user_id)
+        registration_status = shared.get("registration_status", "active")
+        role = role or shared.get("role", "employee")
+        locked = locked or registration_status == "locked"
+        diet = diet if diet is not None else shared.get("diet_type", "non-veg")
+        driving = driving if driving is not None else shared.get("self_driving", False)
+        username = username if username is not None else shared.get("username")
         self.profiles[user_id] = RegistrationProfile(
             user_id=user_id, role=role,
             registration_status="locked" if locked else "active",
@@ -104,13 +145,27 @@ class FakeEventClient:
     def __init__(self):
         self.events: dict[str, EventInfo] = {}
 
-    def set_event(self, event_id, ticket_limit=None, cancellation_deadline=None,
+    def set_event(self, event_id, ticket_limit=_UNSET, cancellation_deadline=_UNSET,
                   is_draft=False, status=EVENT_STATUS_REGISTERING,
                   reg_open=True):
+        shared = _shared_event(event_id)
+        if ticket_limit is _UNSET:
+            ticket_limit = shared.get("ticket_limit")
+        if cancellation_deadline is _UNSET:
+            if "cancellation_offset" in shared:
+                cancellation_deadline = NOW + timedelta(hours=shared["time_offset"] - shared["cancellation_offset"])
+            else:
+                cancellation_deadline = None
+
+        guest_allowed = shared.get("guest_allowed")
+        if guest_allowed is None:
+            guest_allowed = ticket_limit is None
+
+        event_name = shared.get("name", f"Event {event_id}")
         self.events[event_id] = EventInfo(
-            event_id=event_id, name=f"Event {event_id}", status=status,
-            is_draft=is_draft, guest_allowed=(ticket_limit is None),
-            ticket_limit=ticket_limit, remaining_tickets=0,
+            event_id=event_id, name=event_name, status=status,
+            is_draft=is_draft, guest_allowed=guest_allowed,
+            ticket_limit=ticket_limit, remaining_tickets=shared.get("remaining_tickets", 0),
             cancellation_deadline=cancellation_deadline,
             registration_start=(NOW - timedelta(days=1)) if reg_open else (NOW + timedelta(days=1)),
             registration_end=NOW + timedelta(days=7),

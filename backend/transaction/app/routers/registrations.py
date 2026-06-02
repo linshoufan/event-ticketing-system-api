@@ -17,6 +17,7 @@ from app.core.database import get_db
 from app.core.dependencies import CurrentUser, role_required
 from app.core.external import AccountClient, ExternalServiceError, get_account_client
 from app.models.transaction import Transaction
+from app.schemas.transaction import EventRegistrationsResponse
 from app.services import transaction_service
 
 router = APIRouter()
@@ -41,7 +42,7 @@ def _to_registration_item(tx: Transaction, account_client: AccountClient) -> dic
         "registeredAt": tx.registered_at.isoformat(),
     }
 
-@router.get("/events/{event_id}/registrations", response_model=dict)
+@router.get("/events/{event_id}/registrations", response_model=EventRegistrationsResponse)
 def list_event_registrations(
     event_id: str = Path(..., min_length=1, max_length=50),
     page: int = Query(1, ge=1),

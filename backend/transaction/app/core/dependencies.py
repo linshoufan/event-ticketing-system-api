@@ -1,28 +1,28 @@
 from dataclasses import dataclass
 
 from fastapi import Depends, Header, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import settings
 from app.core.security import decode_access_token
 
-# tokenUrl 只是給 OpenAPI docs 用的，實際 token 由 Account Service 發
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/v1/auth/login")
+security_scheme = HTTPBearer(auto_error=False)
 
 @dataclass
 class CurrentUser:
-    """從 JWT payload 解出來的輕量使用者物件。
-
-    注意：Transaction Service 沒有 users 表，所以這裡只放 token 裡有的欄位。
-    如果業務邏輯需要 registrationStatus、autofill、preferences 等，
-    改呼叫 AccountClient.get_registration_profile()。
-    """
+    """從 JWT payload 解出來的輕量使用者物件。"""
     user_id: str
     role: str
 
-
-def get_current_user(token: str = Depends(oauth2_scheme)) -> CurrentUser:
+def get_current_user(auth: HTTPAuthorizationCredentials | None = Depends(security_scheme)) -> CurrentUser:
     """從 Authorization header 取出 JWT 並解析。"""
+    if not auth:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "NOT_LOGGED_IN", "message": "Not logged in"},
+        )
+
+    token = auth.credentials
     payload = decode_access_token(token)
     user_id = payload.get("user_id")
     role = payload.get("role")

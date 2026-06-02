@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from datetime import datetime, timezone
 
 from app.core.database import get_db
 from app.core.dependencies import verify_internal_key
@@ -8,6 +9,13 @@ from app.schemas.user import AutofillSchema
 from app.services import user_service
 
 router = APIRouter()
+
+def isoformat_utc(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.isoformat()
 
 
 @router.get("/internal/users/{user_id}/registration-profile", response_model=dict)
@@ -22,7 +30,7 @@ def get_registration_profile(
         "username": user.username,
         "role": user.role,
         "registrationStatus": user.registration_status,
-        "unlockAt": user.unlock_at.isoformat() if user.unlock_at else None,
+        "unlockAt": isoformat_utc(user.unlock_at),
         "autofill": AutofillSchema(
             dietType=user.diet_type,
             selfDriving=user.self_driving,
@@ -41,7 +49,7 @@ def punish_user(
     return success({
         "userId": user.user_id,
         "registrationStatus": user.registration_status,
-        "unlockAt": user.unlock_at.isoformat() if user.unlock_at else None,
+        "unlockAt": isoformat_utc(user.unlock_at),
     })
 
 @router.patch("/internal/users/{user_id}/autofill", response_model=dict)

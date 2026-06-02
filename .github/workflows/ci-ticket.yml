@@ -62,4 +62,4 @@ jobs:
 
       - name: Run tests
         working-directory: backend/ticket
-        run: PYTHONPATH=. python -m unittest discover tests/ -v
+        run: pytest tests/ -v --tb=short

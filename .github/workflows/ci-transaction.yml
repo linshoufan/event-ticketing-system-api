@@ -5,6 +5,7 @@ on:
     branches: [dev, main]
     paths:
       - "backend/transaction/**"
+      - "scripts/**"
       - "requirements.txt"
       - ".github/workflows/ci-transaction.yml"
 
