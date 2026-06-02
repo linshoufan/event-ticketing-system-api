@@ -46,7 +46,7 @@ backend/event/
 ├── migrations/
 │   └── versions/                       # Alembic migrations
 └── tests/
-    ├── conftest.py                     # SQLite in-memory test database
+    ├── conftest.py                     # PostgreSQL test database
     ├── unit/
     └── integration/
 ```
@@ -62,7 +62,7 @@ backend/event/
 | Migration | Alembic |
 | 驗證 Schema | Pydantic |
 | 身分驗證 | python-jose |
-| 測試 | pytest + FastAPI TestClient + SQLite in-memory |
+| 測試 | pytest + FastAPI TestClient + PostgreSQL test database |
 | 排程 | APScheduler |
 
 ---
@@ -600,7 +600,7 @@ DB 內部以 integer 儲存，API request/response 支援字串。
 - Pydantic validation error 統一回 `400 BAD_REQUEST`。
 - Batch create 每筆獨立 commit；單筆失敗會 rollback 該筆並繼續處理下一筆。
 - `events.name` 有 unique constraint，重複名稱會造成 batch create partial failure。
-- 測試使用 SQLite in-memory，不使用 event PostgreSQL 測試資料庫。
+- 測試使用 PostgreSQL 測試資料庫，透過 `EVENT_DB_*` 環境變數連線。
 - Production/runtime DB 仍使用 PostgreSQL，由 `backend/event/app/core/database.py` 的設定決定。
 
 ---
@@ -624,7 +624,7 @@ DB 內部以 integer 儲存，API request/response 支援字串。
 
 ## 11. 測試
 
-Event service 測試採用 pytest + FastAPI TestClient + SQLite in-memory。
+Event service 測試採用 pytest + FastAPI TestClient + PostgreSQL 測試資料庫。
 
 目前測試資料庫設定位於：
 

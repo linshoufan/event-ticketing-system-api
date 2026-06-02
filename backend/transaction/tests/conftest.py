@@ -1,6 +1,6 @@
 """pytest 共用 fixtures。
 
-測試使用 SQLite；外部服務（Account / Event / Ticket）一律用 fake 物件，
+測試使用 PostgreSQL (test_transaction_db)；外部服務（Account / Event / Ticket）一律用 fake 物件，
 透過 dependency_overrides 注入。token fixture 用與 settings 相同的 secret 簽 JWT。
 """
 from __future__ import annotations
@@ -12,7 +12,7 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 from jose import jwt
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
@@ -31,14 +31,34 @@ from app.models.transaction import Transaction
 
 NOW = datetime.now(timezone.utc)
 _UNSET = object()
-TEST_DB_PATH = Path("/private/tmp/transaction_service_tests.sqlite")
-TEST_DATABASE_URL = f"sqlite:///{TEST_DB_PATH}"
 
-test_engine = create_engine(
-    TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False, "timeout": 30},
+TEST_DB_NAME = "test_transaction_db"
+
+def ensure_test_db_exists():
+    """確保 PostgreSQL 測試資料庫存在。"""
+    admin_url = f"postgresql+psycopg2://{settings.transaction_db_user}:{settings.transaction_db_password}@{settings.transaction_db_host}:{settings.transaction_db_port}/postgres"
+    engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
+    
+    with engine.connect() as conn:
+        result = conn.execute(text(f"SELECT 1 FROM pg_database WHERE datname = '{TEST_DB_NAME}'"))
+        if not result.fetchone():
+            print(f"🛠️ Creating test database: {TEST_DB_NAME}")
+            conn.execute(text(f"CREATE DATABASE {TEST_DB_NAME}"))
+    engine.dispose()
+
+try:
+    ensure_test_db_exists()
+except Exception as e:
+    print(f"⚠️ Warning: Failed to ensure test database exists: {e}")
+
+TEST_DATABASE_URL = (
+    f"postgresql+psycopg2://{settings.transaction_db_user}:{settings.transaction_db_password}"
+    f"@{settings.transaction_db_host}:{settings.transaction_db_port}/{TEST_DB_NAME}"
 )
+
+test_engine = create_engine(TEST_DATABASE_URL, pool_pre_ping=True)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
 database_module.engine = test_engine
 database_module.SessionLocal = TestingSessionLocal
 
@@ -64,27 +84,19 @@ def _shared_event(event_id: str) -> dict:
 # DB
 @pytest.fixture(scope="session", autouse=True)
 def db_engine():
-    if TEST_DB_PATH.exists():
-        TEST_DB_PATH.unlink()
     Base.metadata.create_all(bind=test_engine)
     yield test_engine
-    Base.metadata.drop_all(bind=test_engine)
-    test_engine.dispose()
-    if TEST_DB_PATH.exists():
-        TEST_DB_PATH.unlink()
 
 @pytest.fixture
 def db(db_engine):
     session = TestingSessionLocal()
-    # 清空
+    # 測試前清空
     session.query(Transaction).delete()
     session.commit()
     try:
         yield session
     finally:
         session.rollback()
-        session.query(Transaction).delete()
-        session.commit()
         session.close()
 
 # Fake external clients
@@ -120,11 +132,9 @@ class FakeAccountClient:
         return self.profiles[user_id]
 
     def update_autofill(self, user_id, diet_type, self_driving):
-        # 對齊真實 AccountClient.update_autofill 的簽名
         self.autofill_updates.append(
             {"userId": user_id, "dietType": diet_type, "selfDriving": self_driving}
         )
-        # 同時更新 in-memory profile，模擬 Account 寫入後的效果
         if user_id in self.profiles:
             prof = self.profiles[user_id]
             if diet_type is not None:

@@ -68,7 +68,7 @@ class TicketService:
                     "status": display_status,
                     "checkinAvailable": checkin_available
                 })
-            except Exception as e:
+            except Exception:
                 # 即使 Event Service 出錯，也要確保回傳欄位結構一致
                 result.append({
                     "ticketId": t.ticket_id,

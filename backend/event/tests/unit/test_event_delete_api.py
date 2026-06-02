@@ -12,7 +12,17 @@ def test_delete_event_success_for_draft(client, valid_event_payload):
 
 def test_delete_event_success_before_registration_starts(client, valid_event_payload):
     c = client("welfare_member")
-    create_res = c.post("/v1/events/", json={**valid_event_payload, "isDraft": False})
+    # Today is June 2, 2026. Setting dates to the far future.
+    payload = {
+        **valid_event_payload,
+        "isDraft": False,
+        "registrationStart": "2026-12-01T00:00:00Z",
+        "registrationEnd": "2026-12-31T23:59:59Z",
+        "eventStartTime": "2027-01-01T00:00:00Z",
+        "eventEndTime": "2027-01-01T23:59:59Z",
+    }
+    create_res = c.post("/v1/events/", json=payload)
+    assert create_res.status_code == 201
     event_id = create_res.json()["data"]["eventId"]
 
     del_res = c.delete(f"/v1/events/{event_id}")

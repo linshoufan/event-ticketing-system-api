@@ -11,16 +11,6 @@
 - locked 帳號不能報名
 - cancellation deadline 過後不能取消
 """
-import sys
-import os
-sys.path.insert(0, '.')
-
-os.environ['TRANSACTION_DB_USER'] = 'txuser'
-os.environ['TRANSACTION_DB_PASSWORD'] = 'txpass'
-os.environ['TRANSACTION_DB_HOST'] = 'localhost'
-os.environ['TRANSACTION_DB_PORT'] = '5432'
-os.environ['TRANSACTION_DB_NAME'] = 'transaction_db'
-
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 

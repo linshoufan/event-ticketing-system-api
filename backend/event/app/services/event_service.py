@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from typing import List, Tuple, Optional, Any
+from typing import List, Tuple, Optional
 from sqlalchemy.exc import IntegrityError
 from ..models.event import Event
 from ..schemas.event import EventCreate, EventUpdate, BatchUpdateItem, normalize_status

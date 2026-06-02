@@ -31,7 +31,6 @@ from app.schemas.transaction import (
     RegistrationCreateRequest,
     RegistrationUpdateRequest,
     RegistrationCreateResponse,
-    TransactionItem,
     TransactionDetailResponse,
     TransactionListResponse,
     UpdateResponse,
