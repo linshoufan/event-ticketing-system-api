@@ -1,5 +1,4 @@
 import uvicorn
-import os
 
 if __name__ == "__main__":
     # 支援 reload 功能

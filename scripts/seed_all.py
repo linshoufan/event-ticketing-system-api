@@ -98,7 +98,7 @@ def seed_all(reset=False):
                         updated_at = NOW()
                 """), {"uid": u['user_id'], "email": u['email'], "role": u['role']})
             conn.commit()
-        print(f"✅ Seeded Account Users")
+        print("✅ Seeded Account Users")
     else:
         print("⚠️ Warning: 'users' table missing. Skipping Account Seed.")
 

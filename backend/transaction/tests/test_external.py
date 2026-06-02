@@ -12,7 +12,6 @@ from app.core.external import (
     EventClient,
     ExternalNotFoundError,
     ExternalUnavailableError,
-    TicketClient,
     EVENT_STATUS_REGISTERING,
 )
 

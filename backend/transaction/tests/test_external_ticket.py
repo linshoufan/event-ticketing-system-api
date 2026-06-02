@@ -1,5 +1,4 @@
 import httpx
-import pytest
 from app.core.external import TicketClient
 
 def test_ticket_client_issue_ticket(monkeypatch):
