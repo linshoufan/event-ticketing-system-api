@@ -29,35 +29,31 @@ Install the required Python packages for all backend services:
 pip install -r requirements.txt
 ```
 
-### 3.2 Start Databases
+### 3.2 Start The Local Stack
 
-To start only the local databases from the repo root, run:
+To start the local API services and databases from the repo root, run:
 
 ```bash
-docker compose up -d account-db event-db transaction-db ticket-db
+docker compose up -d --build
 ```
 
 This will start:
+- `account-api` (Port 8000)
+- `event-api` (Port 8003)
+- `transaction-api` (Port 8002)
+- `ticket-api` (Port 8001)
 - `account-db` (Port 5433)
 - `event-db` (Port 5432)
 - `transaction-db` (Port 5434)
 - `ticket-db` (Port 5435)
 
-This command only starts the four database services. Docker Compose does not run migrations or seed data automatically.
+Docker Compose does not run migrations or seed data automatically.
 
-If you run the full Compose stack instead:
-
-```bash
-docker compose up
-```
-
-or:
+If you only need the local databases because you want to run API services directly with `uvicorn`, start just the database services:
 
 ```bash
-docker compose up -d
+docker compose up -d account-db event-db transaction-db ticket-db
 ```
-
-the result is the same: only the database services are started.
 
 ### 3.3 Initialize Data (Optional)
 
