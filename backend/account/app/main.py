@@ -7,7 +7,6 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.scheduler import start_scheduler, stop_scheduler
 from app.routers.auth import router as auth_router
-from app.routers.debug import router as debug_router
 from app.routers.internal import router as internal_router
 from app.routers.me import router as me_router
 from app.routers.users import router as users_router
@@ -55,7 +54,6 @@ def read_root():
 
 
 app.include_router(auth_router, prefix="/v1")
-app.include_router(debug_router, prefix="/v1")
 app.include_router(internal_router, prefix="/v1")
 app.include_router(me_router, prefix="/v1")
 app.include_router(users_router, prefix="/v1")
