@@ -12,7 +12,7 @@ from jose import jwt
 from app.main import app
 from app.core.database import Base, get_db
 from app.core.config import settings
-from app.core.dependencies import get_current_user_role
+from app.core.dependencies import CurrentUser, get_current_user
 from app.models.event import Event  # noqa: F401 ensure metadata is loaded
 
 TEST_DATABASE_URL = "sqlite://"
@@ -57,11 +57,11 @@ def client(db_session):
         
         def override_role_check():
             if role is None:
-                raise HTTPException(status_code=401, detail={"code": "UNAUTHORIZED"})
-            return {"user_id": "test_user", "role": role}
+                raise HTTPException(status_code=401, detail={"code": "NOT_LOGGED_IN"})
+            return CurrentUser(user_id="test_user", role=role)
         
         app.dependency_overrides[get_db] = override_get_db
-        app.dependency_overrides[get_current_user_role] = override_role_check
+        app.dependency_overrides[get_current_user] = override_role_check
         return TestClient(app)
     
     yield _client
@@ -87,7 +87,7 @@ def raw_client(db_session):
 def auth_headers():
     def _auth_headers(role="welfare_member", expires_delta=timedelta(hours=1)):
         payload = {
-            "userId": "u_test",
+            "user_id": "u_test",
             "email": "test@example.com",
             "role": role,
             "exp": datetime.now(timezone.utc) + expires_delta,

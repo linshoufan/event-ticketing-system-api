@@ -20,4 +20,4 @@ def test_get_event_unauthorized(raw_client):
     response = raw_client.get("/v1/events/any_id")
 
     assert response.status_code == 401
-    assert response.json()["error"]["code"] == "UNAUTHORIZED"
+    assert response.json()["error"]["code"] == "NOT_LOGGED_IN"

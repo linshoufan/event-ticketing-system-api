@@ -1,5 +1,9 @@
 from datetime import timedelta
+from datetime import datetime, timezone
 
+from jose import jwt
+
+from app.core.config import settings
 
 def test_create_event_success(client, valid_event_payload):
     c = client("welfare_member")
@@ -43,7 +47,7 @@ def test_create_event_unauthorized(raw_client, valid_event_payload):
     response = raw_client.post("/v1/events/", json=valid_event_payload)
 
     assert response.status_code == 401
-    assert response.json()["error"]["code"] == "UNAUTHORIZED"
+    assert response.json()["error"]["code"] == "NOT_LOGGED_IN"
 
 
 def test_create_event_invalid_token(raw_client, valid_event_payload):
@@ -65,7 +69,26 @@ def test_create_event_expired_token(raw_client, auth_headers, valid_event_payloa
     )
 
     assert response.status_code == 401
-    assert response.json()["error"]["code"] == "TOKEN_EXPIRED"
+    assert response.json()["error"]["code"] == "INVALID_TOKEN"
+
+
+def test_create_event_incomplete_token(raw_client, valid_event_payload):
+    token = jwt.encode(
+        {
+            "user_id": "u_test",
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+        },
+        settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
+    )
+    response = raw_client.post(
+        "/v1/events/",
+        headers={"Authorization": f"Bearer {token}"},
+        json=valid_event_payload,
+    )
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "INVALID_TOKEN"
 
 
 def test_create_event_validation_error_is_bad_request(client):

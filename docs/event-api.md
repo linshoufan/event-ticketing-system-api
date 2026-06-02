@@ -142,7 +142,7 @@ Token payload:
 
 ```json
 {
-  "userId": "u_001",
+  "user_id": "u_001",
   "email": "user@example.com",
   "role": "welfare_member",
   "iat": 1748476800,
@@ -610,9 +610,8 @@ DB 內部以 integer 儲存，API request/response 支援字串。
 | HTTP | Code | 說明 |
 |------|------|------|
 | 400 | `BAD_REQUEST` | 請求格式或 schema 驗證失敗 |
-| 401 | `UNAUTHORIZED` | 缺少 Bearer Token |
-| 401 | `TOKEN_EXPIRED` | JWT 已過期 |
-| 401 | `INVALID_TOKEN` | JWT 簽名或格式無效 |
+| 401 | `NOT_LOGGED_IN` | 缺少 Bearer Token |
+| 401 | `INVALID_TOKEN` | JWT 簽名、格式、過期或 payload 無效 |
 | 401 | `INVALID_INTERNAL_KEY` | Internal API key 錯誤 |
 | 403 | `FORBIDDEN` | 角色權限不足 |
 | 404 | `EVENT_NOT_FOUND` | 指定活動不存在 |
@@ -656,5 +655,5 @@ pytest tests/ -q
 目前預期結果：
 
 ```text
-37 passed
+38 passed
 ```
