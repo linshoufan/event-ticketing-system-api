@@ -109,6 +109,7 @@ services:
     command: >
       sh -c "pip install -r requirements.txt && 
              echo '🛠️ Running Account Migrations...' && cd backend/account && alembic upgrade head &&
+             echo '🛠️ Running Event Migrations...' && cd ../event && alembic upgrade head &&
              echo '🛠️ Running Transaction Migrations...' && cd ../transaction && alembic upgrade head &&
              echo '🛠️ Running Ticket Migrations...' && cd ../ticket && alembic upgrade head &&
              echo '🌱 Seeding All Mock Data...' && cd ../.. && python scripts/seed_all.py"

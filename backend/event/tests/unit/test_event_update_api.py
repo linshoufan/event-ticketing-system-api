@@ -1,47 +1,36 @@
-import requests
 import pytest
 
-def test_update_event_success(base_url, shared_data):
-    # Setup: Create an event
-    shared_event = next(e for e in shared_data["events"] if e["id"] == "event_011")
+def test_update_event_success(client):
+    c = client("welfare_member")
     payload = {
-        "name": "Update Test",
-        "description": "desc",
-        "location": "loc",
-        "category": "music",
-        "guestAllowed": True,
-        "ticketLimit": 100,
-        "remainingTickets": 100,
-        "eventStartTime": "2026-06-02T09:00:00Z",
-        "eventEndTime": "2026-06-02T18:00:00Z",
-        "registrationStart": "2026-06-01T09:00:00Z",
-        "registrationEnd": "2026-06-01T18:00:00Z",
-        "status": "published"
+        "name": "Update Test", "description": "desc", "location": "loc",
+        "eventStartTime": "2026-06-02T09:00:00Z", "eventEndTime": "2026-06-02T18:00:00Z",
+        "registrationStart": "2026-06-01T09:00:00Z", "registrationEnd": "2026-06-01T18:00:00Z",
+        "remainingTickets": 100
     }
-    res = requests.post(f"{base_url}/v1/events", json=payload)
+    res = c.post("/v1/events/", json=payload)
     event_id = res.json()["data"]["eventId"]
     
-    # Update
-    update_payload = {"ticketLimit": 500, "guestAllowed": False}
-    patch_res = requests.patch(f"{base_url}/v1/events/{event_id}", json=update_payload)
+    update_payload = {"ticketLimit": 500, "status": "closed"}
+    patch_res = c.patch(f"/v1/events/{event_id}", json=update_payload)
     assert patch_res.status_code == 200
     
-    # Verify
-    get_res = requests.get(f"{base_url}/v1/events/{event_id}")
-    updated_data = get_res.json()["data"]
-    assert updated_data["ticketLimit"] == 500
-    assert updated_data["guestAllowed"] is False
+    get_res = c.get(f"/v1/events/{event_id}")
+    assert get_res.json()["data"]["ticketLimit"] == 500
+    assert get_res.json()["data"]["status"] == "closed"
 
-def test_update_event_invalid_type(base_url):
-    # Setup: Create an event
-    payload = {
-        "name": "Type Test", "category": "music", "ticketLimit": 100,
+def test_update_event_forbidden_for_employee(client):
+    # 先以 HR 身分建立活動
+    c_admin = client("hr")
+    res = c_admin.post("/v1/events/", json={
+        "name": "Admin Event", "description": "desc", "location": "loc",
         "eventStartTime": "2026-06-02T09:00:00Z", "eventEndTime": "2026-06-02T18:00:00Z",
-        "registrationStart": "2026-06-01T09:00:00Z", "registrationEnd": "2026-06-01T18:00:00Z", "status": "published"
-    }
-    res = requests.post(f"{base_url}/v1/events", json=payload)
+        "registrationStart": "2026-06-01T09:00:00Z", "registrationEnd": "2026-06-01T18:00:00Z",
+        "remainingTickets": 100
+    })
     event_id = res.json()["data"]["eventId"]
-
-    # Update with wrong type
-    response = requests.patch(f"{base_url}/v1/events/{event_id}", json={"ticketLimit": "string_not_number"})
-    assert response.status_code == 400
+    
+    # 再以一般員工身分嘗試更新
+    c_user = client("employee")
+    response = c_user.patch(f"/v1/events/{event_id}", json={"name": "Hacked"})
+    assert response.status_code == 403

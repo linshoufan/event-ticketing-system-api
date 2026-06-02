@@ -96,8 +96,8 @@ Run seeding again when initializing a fresh environment, after deleting database
 
 - **Account Service** (Port 8000):
   `cd backend/account && uvicorn main:app --reload --port 8000`
-- **Event Service** (Port 3000):
-  `cd backend/event && npm install && npm run dev`
+- **Event Service** (Port 8003):
+  `cd backend/event && uvicorn app.main:app --reload --port 8003`
 - **Transaction Service** (Port 8002):
   `cd backend/transaction && uvicorn main:app --reload --port 8002`
 - **Ticket Service** (Port 8001):

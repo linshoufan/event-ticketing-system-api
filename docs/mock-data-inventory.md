@@ -83,3 +83,41 @@
 服務測試使用 `scripts/mock_data.yaml` 作為來源，確保測試環境與開發環境資料同步。
 - CI 執行時會起測試 DB 並跑完 Migrations 後再執行測試。
 - 每個測試案例應自主 Arrange 所需資料，不依賴前案遺留狀態。
+
+## API Request Samples
+
+### Event Service
+
+#### Create Event (POST /v1/events)
+```json
+{
+  "name": "2026 仲夏星空電影節",
+  "description": "在公司頂樓花園享受露天電影與精緻餐點，放鬆您的心情。",
+  "location": "台北辦公室頂樓花園",
+  "category": "entertainment",
+  "guestAllowed": true,
+  "ticketLimit": 100,
+  "remainingTickets": 100,
+  "cancellationDeadline": "2026-07-10T23:59:59Z",
+  "latitude": 25.0478,
+  "longitude": 121.5319,
+  "checkinRadiusMeters": 150,
+  "eventStartTime": "2026-07-15T19:00:00Z",
+  "eventEndTime": "2026-07-15T22:00:00Z",
+  "registrationStart": "2026-06-01T09:00:00Z",
+  "registrationEnd": "2026-07-01T18:00:00Z",
+  "status": "registering",
+  "isDraft": false,
+  "faqs": [
+    {
+      "question": "需要自備椅子嗎？",
+      "answer": "主辦單位會提供舒適的懶人沙發與靠墊。"
+    },
+    {
+      "question": "現場有提供食物嗎？",
+      "answer": "現場將提供爆米花、吉拿棒與各式軟性飲料。"
+    }
+  ]
+}
+```
+
