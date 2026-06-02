@@ -1,25 +1,17 @@
 """Pydantic schemas：request / response 結構。
 
-對外 API 用 camelCase（對齊前端 / Event Service 慣例）
-對內 ORM 用 snake_case，由 from_model() 做轉換。
+對外 API 用 camelCase。所有回應都包在 {"data": ...}（列表再加 "pagination"）的
+envelope 裡，因此 response model 以 envelope 為單位定義，直接掛在 router 的 response_model。
+錯誤回應由 main.py 的 exception handler 處理，不走這些 model。
 """
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.transaction import Transaction
-
-# Request
+# Request 
 class RegistrationCreateRequest(BaseModel):
-    """POST /v1/transactions 的 body。
-
-    eventId 必填；其他三個欄位若不給，由 service 層用 Account Service 的 autofill 補上。
-    saveAutofill=True 表示希望把這次填的偏好存回 Account Service 當預設值，
-    下次報名時會自動帶入。更新失敗不阻斷報名流程（僅記 warning log）。
-    """
     model_config = ConfigDict(extra="forbid")
 
     eventId: str = Field(..., min_length=1, max_length=50)
@@ -28,70 +20,113 @@ class RegistrationCreateRequest(BaseModel):
     selfDriving: bool | None = None
     saveAutofill: bool = False
 
+
 class RegistrationUpdateRequest(BaseModel):
-    """PATCH /v1/transactions/{id} 的 body。所有欄位都是 optional，只更新有給的。"""
     model_config = ConfigDict(extra="forbid")
 
     guestCount: int | None = Field(default=None, ge=0, le=10)
     dietType: Literal["veg", "non-veg", "none"] | None = None
     selfDriving: bool | None = None
 
-# Response
-class RegistrationResponse(BaseModel):
-    """單筆報名紀錄的對外表示。"""
+
+# 共用 
+class Pagination(BaseModel):
+    page: int
+    limit: int
+    total: int
+
+# POST /transactions 
+class RegistrationCreateResult(BaseModel):
+    transactionId: str
+    status: str
+    waitlistNumber: int | None = None
+    ticketId: str | None = None
+    registeredAt: str
+
+
+class RegistrationCreateResponse(BaseModel):
+    data: RegistrationCreateResult
+
+
+# GET /transactions、GET /transactions/{id} 
+class TransactionItem(BaseModel):
+    transactionId: str
+    eventId: str
+    eventName: str | None = None
+    eventStartTime: str | None = None
+    status: str
+    waitlistNumber: int | None = None
+    guestCount: int
+    dietType: str | None = None
+    selfDriving: bool | None = None
+    registeredAt: str
+    ticketId: str | None = None
+
+class TransactionDetailResponse(BaseModel):
+    data: TransactionItem
+
+class TransactionListResponse(BaseModel):
+    data: list[TransactionItem]
+    pagination: Pagination
+
+
+# PATCH /transactions/{id} 
+class UpdateResult(BaseModel):
+    updated: bool
+    updatedAt: str
+
+class UpdateResponse(BaseModel):
+    data: UpdateResult
+
+
+# DELETE /transactions/{id} 
+class PromotedInfo(BaseModel):
     transactionId: str
     userId: str
-    eventId: str
     status: str
-    waitlistNumber: int | None
-    guestCount: int
-    dietType: str | None
-    selfDriving: bool | None
-    ticketId: str | None
-    registeredAt: datetime
-    cancelledAt: datetime | None
-    updatedAt: datetime
+    ticketId: str | None = None
 
-    @classmethod
-    def from_model(cls, tx: Transaction) -> "RegistrationResponse":
-        return cls(
-            transactionId=tx.transaction_id,
-            userId=tx.user_id,
-            eventId=tx.event_id,
-            status=tx.status,
-            waitlistNumber=tx.waitlist_number,
-            guestCount=tx.guest_count,
-            dietType=tx.diet_type,
-            selfDriving=tx.self_driving,
-            ticketId=tx.ticket_id,
-            registeredAt=tx.registered_at,
-            cancelledAt=tx.cancelled_at,
-            updatedAt=tx.updated_at,
-        )
+class CancelResult(BaseModel):
+    cancelled: bool
+    promoted: PromotedInfo | None = None
 
-class AutofillSchema(BaseModel):
-    dietType: str | None
-    selfDriving: bool | None
+class CancelResponse(BaseModel):
+    data: CancelResult
+
+
+# GET /events/{id}/eligibility 
+class EligibilityPayload(BaseModel):
+    eligible: bool
+    reason: str | None = None
+    remainingTickets: int | None = None
+    isWaitlist: bool = False
+    unlockAt: str | None = None
 
 class EligibilityResponse(BaseModel):
-    """GET /v1/events/{eventId}/eligibility 的回應。
-
-    eligible=True 的情況下，前端可以接著開報名表單；reasonCode 可能是
-    'WILL_BE_WAITLIST'（仍可報，但會進候補）
-    eligible=False 的情況下，reasonCode/reasonMessage 解釋為什麼不能報。
-    """
-    eligible: bool
-    reasonCode: str | None = None
-    reasonMessage: str | None = None
-    willBeWaitlist: bool = False
-    autofill: AutofillSchema | None = None
+    data: EligibilityPayload
 
 
-class CancellationResponse(BaseModel):
-    """DELETE /v1/transactions/{id} 的回應。
+# GET /events/{id}/registrations（後台）
+class RegistrationSummary(BaseModel):
+    totalConfirmed: int
+    totalWaitlist: int
+    totalCancelled: int
 
-    若取消的是 confirmed 且有人在候補，promoted 會帶被升上來的那筆紀錄。
-    前端可以用這個資訊提示「您的取消已釋出給 OOO」。
-    """
-    cancelled: RegistrationResponse
-    promoted: RegistrationResponse | None = None
+class EventRegistrationItem(BaseModel):
+    transactionId: str
+    userId: str
+    username: str | None = None
+    status: str
+    waitlistNumber: int | None = None
+    guestCount: int
+    dietType: str | None = None
+    selfDriving: bool | None = None
+    registeredAt: str
+
+class EventRegistrationsData(BaseModel):
+    summary: RegistrationSummary
+    registrations: list[EventRegistrationItem]
+
+class EventRegistrationsResponse(BaseModel):
+    data: EventRegistrationsData
+    pagination: Pagination

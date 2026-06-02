@@ -27,8 +27,6 @@ class Settings(BaseSettings):
     event_service_url: str = "http://localhost:8003"
     ticket_service_url: str = "http://localhost:8001"
 
-    ticket_service_enabled: bool = True
-
     # Environment
     env: str = "local"
 

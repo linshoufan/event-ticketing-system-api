@@ -155,7 +155,7 @@ def _make_event_client(handler) -> EventClient:
 
 def test_event_client_get_event_with_limit():
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == "/v1/events/event_008"
+        assert request.url.path == "/v1/internal/events/event_008"
         return httpx.Response(200, json={
             "data": {
                 "eventId": "event_008",
@@ -203,25 +203,33 @@ def test_event_client_unlimited_event():
     assert event.has_capacity_limit is False
     assert event.ticket_limit is None
 
-def test_event_client_is_registration_open():
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={
-            "data": {
-                "eventId": "event_010", "name": "X", "status": 1,
-                "isDraft": False, "guestAllowed": False,
-                "ticketLimit": None, "remainingTickets": 0,
-                "cancellationDeadline": None,
-                "registrationStart": "2026-05-01T00:00:00Z",
-                "registrationEnd": "2026-06-01T00:00:00Z",
-                "eventStartTime": "2026-06-20T00:00:00Z",
-                "eventEndTime": "2026-06-20T08:00:00Z",
-            }
-        })
+def test_event_client_sends_internal_key():
+    """EventClient 必須帶 X-Internal-Key 呼叫 Event 的 internal 端點。"""
+    captured = {}
 
-    client = _make_event_client(handler)
-    event = client.get_event("event_010")
-    assert event.is_registration_open(now=datetime(2026, 5, 15, tzinfo=timezone.utc)) is True
-    assert event.is_registration_open(now=datetime(2026, 7, 1, tzinfo=timezone.utc)) is False
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["key"] = request.headers.get("x-internal-key")
+        captured["path"] = request.url.path
+        return httpx.Response(200, json={"data": {
+            "eventId": "ev1", "name": "X", "status": "registering",
+            "isDraft": False, "guestAllowed": False, "ticketLimit": 10,
+            "remainingTickets": 5, "cancellationDeadline": None,
+            "registrationStart": "2026-01-01T00:00:00Z",
+            "registrationEnd": "2026-12-31T00:00:00Z",
+            "eventStartTime": "2026-12-31T10:00:00Z",
+            "eventEndTime": "2026-12-31T12:00:00Z",
+        }})
+
+    from app.core.external import EventClient
+    client = EventClient(base_url="http://test", internal_key="test-key")
+    client._client = httpx.Client(
+        base_url="http://test",
+        headers={"X-Internal-Key": "test-key"},
+        transport=httpx.MockTransport(handler),
+    )
+    client.get_event("ev1")
+    assert captured["key"] == "test-key"
+    assert captured["path"] == "/v1/internal/events/ev1"
 
 def test_event_client_404():
     def handler(request: httpx.Request) -> httpx.Response:
@@ -230,5 +238,3 @@ def test_event_client_404():
     client = _make_event_client(handler)
     with pytest.raises(ExternalNotFoundError):
         client.get_event("nope")
-
-

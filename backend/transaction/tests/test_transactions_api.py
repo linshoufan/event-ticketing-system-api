@@ -1,5 +1,43 @@
 """POST / GET / PATCH / DELETE /v1/transactions 的測試。"""
 
+def test_update_past_deadline_blocked(client, fake_account, fake_event, auth):
+    """過了 cancellation_deadline 後 PATCH 應回 409 PAST_CANCELLATION_DEADLINE。"""
+    from datetime import timedelta
+    from tests.conftest import NOW
+    fake_account.set_profile("user_006")
+    fake_event.set_event("event_009", ticket_limit=None,
+                         cancellation_deadline=NOW + timedelta(hours=1))
+    tx_id = client.post("/v1/transactions", json={"eventId": "event_009"},
+                        headers=auth("user_006")).json()["data"]["transactionId"]
+    # deadline 移到過去
+    fake_event.set_event("event_009", ticket_limit=None,
+                         cancellation_deadline=NOW - timedelta(hours=1))
+    r = client.patch(f"/v1/transactions/{tx_id}", json={"dietType": "veg"},
+                     headers=auth("user_006"))
+    assert r.status_code == 409
+    assert r.json()["error"]["code"] == "PAST_CANCELLATION_DEADLINE"
+
+def test_confirmed_survives_ticket_issue_failure(db, fake_account, fake_event):
+    """ticket 配發失敗時，報名仍 confirmed（ticket_id=None），不丟錯。"""
+    from app.services import transaction_service
+    from app.core.external import ExternalUnavailableError
+    from tests.conftest import FakeTicketClient
+    fake_account.set_profile("user_006")
+    fake_event.set_event("event_010", ticket_limit=5)
+
+    class FailingTicket(FakeTicketClient):
+        def issue_ticket(self, **kw):
+            raise ExternalUnavailableError("TicketService", "down")
+
+    tx = transaction_service.create_registration(
+        user_id="user_006", event_id="event_010",
+        request_guest_count=None, request_diet_type=None, request_self_driving=None,
+        db=db, account_client=fake_account, event_client=fake_event,
+        ticket_client=FailingTicket(),
+    )
+    assert tx.status == "confirmed"
+    assert tx.ticket_id is None
+
 # POST /transactions
 def test_register_confirmed(client, fake_account, fake_event, fake_ticket, auth):
     fake_account.set_profile("user_006", diet="veg", driving=True)
