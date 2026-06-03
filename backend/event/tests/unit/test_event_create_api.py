@@ -15,6 +15,24 @@ def test_create_event_accepts_path_without_trailing_slash(client, valid_event_pa
     assert response.json()["data"]["eventId"] is not None
 
 
+def test_create_event_preflight_allows_vercel_frontend(raw_client):
+    response = raw_client.options(
+        "/v1/events",
+        headers={
+            "Origin": "https://event-ticketing-system-frontend-eight.vercel.app",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "authorization,content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert (
+        response.headers["access-control-allow-origin"]
+        == "https://event-ticketing-system-frontend-eight.vercel.app"
+    )
+    assert response.headers["access-control-allow-credentials"] == "true"
+
+
 def test_create_event_duplicate_name_returns_conflict(client, valid_event_payload):
     c = client("welfare_member")
     assert c.post("/v1/events/", json=valid_event_payload).status_code == 201
