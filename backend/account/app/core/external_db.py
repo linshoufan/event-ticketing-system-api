@@ -91,5 +91,5 @@ def verify_employee(employee_id: str, password: str) -> dict | None:
     return {
         "employee_id": employee["employee_id"],
         "name": employee.get("name", employee["employee_id"]),
-        "email": employee["email"],
+        "email": employee.get("email", f"{employee_id}@company.com")
     }

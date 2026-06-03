@@ -27,12 +27,12 @@
 
 | event_id | name | category | status | 時間設定 | 用途 |
 | --- | --- | --- | --- | --- | --- |
-| `event_001` | 夏日烤肉趴 | `outdoor` | `1` | 已開始、4 小時活動 | 可 check-in、未使用票券 |
+| `event_001` | 夏日烤肉趴 | `sport` | `1` | 已開始、4 小時活動 | 可 check-in、未使用票券 |
 | `event_002` | 部門聚餐 | `food` | `4` | 已結束 | 已使用票券、歷史活動 |
 | `event_003` | 週五電影之夜 | `culture` | `1` | 48 小時後開始 | 已報名但尚未發票 |
 | `event_004` | 員工家庭日 | `family` | `1` | 168 小時後開始 | 可取消期限較長 |
-| `event_005` | Event event_005 | `test` | `1` | 10 天後開始 | Transaction 一般報名 |
-| `event_011` | 跨年烤肉 | `娛樂` | `1` | 固定 2026-12-31 | 明確時間字串測試 |
+| `event_005` | Event event_005 | `culture` | `1` | 10 天後開始 | Transaction 一般報名 |
+| `event_011` | 跨年烤肉 | `music` | `1` | 固定 2026-12-31 | 明確時間字串測試 |
 
 ### Transactions
 

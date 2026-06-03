@@ -108,7 +108,7 @@ class FakeAccountClient:
         self.invalidated: list[str] = []
 
     def set_profile(self, user_id, role=None, locked=False,
-                    diet=None, driving=None, username=None):
+                    diet=None, driving=None, username=None, guest_count=None):
         shared = _shared_user(user_id)
         registration_status = shared.get("registration_status", "active")
         role = role or shared.get("role", "employee")
@@ -121,20 +121,23 @@ class FakeAccountClient:
             registration_status="locked" if locked else "active",
             unlock_at=(NOW + timedelta(days=30)) if locked else None,
             autofill_diet_type=diet, autofill_self_driving=driving,
+            autofill_guest_count=guest_count,  
             preferences=[],
             username=username,
         )
 
-    def get_registration_profile(self, user_id):
+    def get_registration_profile(self, user_id, category=None):
         from app.core.external import ExternalNotFoundError
         if user_id not in self.profiles:
             raise ExternalNotFoundError("AccountService", "user not found", 404)
         return self.profiles[user_id]
 
-    def update_autofill(self, user_id, diet_type, self_driving):
-        self.autofill_updates.append(
-            {"userId": user_id, "dietType": diet_type, "selfDriving": self_driving}
-        )
+
+    def update_autofill(self, user_id, diet_type, self_driving, category=None, guest_count=None):
+        self.autofill_updates.append({
+            "userId": user_id, "category": category,
+            "dietType": diet_type, "selfDriving": self_driving, "guestCount": guest_count,
+        })
         if user_id in self.profiles:
             prof = self.profiles[user_id]
             if diet_type is not None:
@@ -157,7 +160,7 @@ class FakeEventClient:
 
     def set_event(self, event_id, ticket_limit=_UNSET, cancellation_deadline=_UNSET,
                   is_draft=False, status=EVENT_STATUS_REGISTERING,
-                  reg_open=True):
+                  reg_open=True, category=None):
         shared = _shared_event(event_id)
         if ticket_limit is _UNSET:
             ticket_limit = shared.get("ticket_limit")
@@ -174,6 +177,7 @@ class FakeEventClient:
         event_name = shared.get("name", f"Event {event_id}")
         self.events[event_id] = EventInfo(
             event_id=event_id, name=event_name, status=status,
+            category=category or shared.get("category"),
             is_draft=is_draft, guest_allowed=guest_allowed,
             ticket_limit=ticket_limit, remaining_tickets=shared.get("remaining_tickets", 0),
             cancellation_deadline=cancellation_deadline,

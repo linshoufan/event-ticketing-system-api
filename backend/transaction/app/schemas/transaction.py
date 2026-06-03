@@ -41,6 +41,7 @@ class RegistrationCreateResult(BaseModel):
     status: str
     waitlistNumber: int | None = None
     ticketId: str | None = None
+    guestCount: int | None = None 
     registeredAt: str
 
 

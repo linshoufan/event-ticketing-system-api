@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, field_validator, field_serializer, ConfigDict, AliasChoices
 from datetime import datetime
-from typing import List, Optional, Any, Union
+from typing import List, Optional, Any, Union, Literal
 from decimal import Decimal
 
 # 狀態映射表
@@ -11,6 +11,8 @@ STATUS_MAP = {
     3: "closed",
     4: "ended"
 }
+
+VALID_CATEGORIES = ("sport", "food", "travel", "culture", "family", "contest", "music")
 
 # 反向映射表 (用於寫入)
 REVERSE_STATUS_MAP = {v: k for k, v in STATUS_MAP.items()}
@@ -34,7 +36,7 @@ class EventBase(BaseModel):
     name: str
     description: str
     location: str
-    category: Optional[str] = None
+    category: Literal["sport", "food", "travel", "culture", "family", "contest", "music"] | None = None
     
     guestAllowed: bool = Field(
         default=False, 
@@ -120,7 +122,7 @@ class EventUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     location: Optional[str] = None
-    category: Optional[str] = None
+    category: Literal["sport", "food", "travel", "culture", "family", "contest", "music"] | None = None
     guestAllowed: Optional[bool] = Field(default=None, alias="guestAllowed")
     ticketLimit: Optional[int] = Field(default=None, alias="ticketLimit")
     remainingTickets: Optional[int] = Field(default=None, alias="remainingTickets")

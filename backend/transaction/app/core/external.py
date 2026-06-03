@@ -64,6 +64,7 @@ class RegistrationProfile:
     autofill_diet_type: str | None
     autofill_self_driving: bool | None
     preferences: list[str]
+    autofill_guest_count: int | None = None
     username: str | None = None
 
     @property
@@ -85,6 +86,7 @@ class EventInfo:
     registration_end: datetime
     event_start_time: datetime
     event_end_time: datetime
+    category: str | None = None
 
     @property
     def has_capacity_limit(self) -> bool:
@@ -132,12 +134,19 @@ class AccountClient:
         user_id: str,
         diet_type: str | None,
         self_driving: bool | None,
+        category: str | None = None,
+        guest_count: int | None = None, 
     ) -> None:
         """PATCH /v1/internal/users/{user_id}/autofill"""
+        payload: dict[str, Any] = {"dietType": diet_type, "selfDriving": self_driving}
+        if category is not None:
+            payload["category"] = category
+        if guest_count is not None:
+            payload["guestCount"] = guest_count
         try:
             response = self._client.patch(
                 f"/v1/internal/users/{user_id}/autofill",
-                json={"dietType": diet_type, "selfDriving": self_driving},
+                json=payload,
             )
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
@@ -145,15 +154,25 @@ class AccountClient:
         except httpx.RequestError as exc:
             raise ExternalUnavailableError("AccountService", f"network error: {exc}") from exc
 
-    def get_registration_profile(self, user_id: str) -> RegistrationProfile:
-        """GET /v1/internal/users/{user_id}/registration-profile"""
-        cache_key = f"profile:{user_id}"
+        self._cache.clear()
+
+    def get_registration_profile(
+        self,
+        user_id: str,
+        category: str | None = None,
+    ) -> RegistrationProfile:
+        """GET /v1/internal/users/{user_id}/registration-profile[?category=...]"""
+        cache_key = f"profile:{user_id}:{category or ''}"
         cached = self._cache.get(cache_key)
         if cached is not None:
             return cached
 
+        params = {"category": category} if category else None
         try:
-            response = self._client.get(f"/v1/internal/users/{user_id}/registration-profile")
+            response = self._client.get(
+                f"/v1/internal/users/{user_id}/registration-profile",
+                params=params,
+            )
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             raise _classify_http_error("AccountService", exc) from exc
@@ -170,13 +189,14 @@ class AccountClient:
             unlock_at=_parse_iso(data.get("unlockAt")),
             autofill_diet_type=autofill.get("dietType"),
             autofill_self_driving=autofill.get("selfDriving"),
+            autofill_guest_count=autofill.get("guestCount"),
             preferences=data.get("preferences", []),
         )
         self._cache.set(cache_key, profile)
         return profile
 
     def invalidate_profile_cache(self, user_id: str) -> None:
-        self._cache.invalidate(f"profile:{user_id}")
+        self._cache.clear()
 
     def punish_user(self, user_id: str) -> dict[str, Any]:
         """POST /v1/internal/users/{user_id}/punish
@@ -235,6 +255,7 @@ class EventClient:
         event = EventInfo(
             event_id=data["eventId"],
             name=data["name"],
+            category=data.get("category"),
             status=parsed_status,
             is_draft=data.get("isDraft", False),
             guest_allowed=data.get("guestAllowed", False),
