@@ -12,6 +12,10 @@ from app.routers.me import router as me_router
 from app.routers.users import router as users_router
 
 
+def _csv_setting(value: str) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     start_scheduler()
@@ -27,10 +31,10 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_csv_setting(settings.cors_origins),
+    allow_credentials=True,
+    allow_methods=_csv_setting(settings.cors_methods),
+    allow_headers=_csv_setting(settings.cors_headers),
 )
 
 
