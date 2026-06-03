@@ -132,11 +132,13 @@ class EventRepository:
 
         return query
 
-    def create_event_id(self) -> None:
-        id_entity = EventID(id=1, isOccupied=True)
-        self.db.add(id_entity)
+    def create_event_id(self, event_id: Optional[EventID]) -> None:
+        if event_id is None:
+            event_id = EventID(id=1, isOccupied=True)
+
+        self.db.add(event_id)
         self.db.commit()
-        self.db.refresh(id_entity)
+        self.db.refresh(event_id)
 
     def update_event_id(self, event_id: EventID) -> None:
         if event_id is None:
