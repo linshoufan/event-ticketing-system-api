@@ -1,0 +1,64 @@
+name: CI - Event Service
+
+on:
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - "backend/event/**"
+      - "scripts/**"
+      - "requirements.txt"
+      - ".github/workflows/ci-event.yml"
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_event_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      ENV: local
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      EVENT_DB_HOST: localhost
+      EVENT_DB_PORT: 5432
+      EVENT_DB_USER: test
+      EVENT_DB_PASSWORD: test
+      EVENT_DB_NAME: test_event_db
+      JWT_SECRET_KEY: ci-test-secret-key
+      JWT_ALGORITHM: HS256
+      INTERNAL_API_KEY: ci-test-internal-key
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Lint
+        working-directory: backend/event
+        run: ruff check app/ tests/
+
+      - name: Run migrations
+        working-directory: backend/event
+        run: alembic upgrade head
+
+      - name: Run tests
+        working-directory: backend/event
+        run: pytest tests/ -v --tb=short

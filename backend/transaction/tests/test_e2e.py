@@ -11,16 +11,6 @@
 - locked 帳號不能報名
 - cancellation deadline 過後不能取消
 """
-import sys
-import os
-sys.path.insert(0, '.')
-
-os.environ['TRANSACTION_DB_USER'] = 'txuser'
-os.environ['TRANSACTION_DB_PASSWORD'] = 'txpass'
-os.environ['TRANSACTION_DB_HOST'] = 'localhost'
-os.environ['TRANSACTION_DB_PORT'] = '5432'
-os.environ['TRANSACTION_DB_NAME'] = 'transaction_db'
-
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
@@ -35,6 +25,7 @@ from app.models.transaction import Transaction
 from app.services import transaction_service, no_show_service
 
 now = datetime.now(timezone.utc)
+USER_IDS = [f"user_{i:03d}" for i in range(5, 11)]
 
 def make_profile(user_id, role="employee", locked=False, diet="non-veg", driving=False, username=None):
     return RegistrationProfile(
@@ -93,11 +84,11 @@ def test_confirmed_registration():
     reset_db()
     db = SessionLocal()
     acc, evt, tkt = make_clients(
-        profiles={"u-1": make_profile("u-1", diet="veg", driving=True)},
-        events={"e-1": make_event("e-1", ticket_limit=2, guest_allowed=True)},
+        profiles={"user_006": make_profile("user_006", diet="veg", driving=True)},
+        events={"event_005": make_event("event_005", ticket_limit=2, guest_allowed=True)},
     )
     tx = transaction_service.create_registration(
-        user_id="u-1", event_id="e-1",
+        user_id="user_006", event_id="event_005",
         request_guest_count=None,  # 不給 → 預設 0
         request_diet_type=None,    # 不給 → 走 autofill
         request_self_driving=None, # 不給 → 走 autofill
@@ -118,17 +109,17 @@ def test_duplicate_blocked():
     reset_db()
     db = SessionLocal()
     acc, evt, tkt = make_clients(
-        profiles={"u-1": make_profile("u-1")},
-        events={"e-1": make_event("e-1", ticket_limit=5)},
+        profiles={"user_006": make_profile("user_006")},
+        events={"event_005": make_event("event_005", ticket_limit=5)},
     )
     transaction_service.create_registration(
-        user_id="u-1", event_id="e-1",
+        user_id="user_006", event_id="event_005",
         request_guest_count=None, request_diet_type=None, request_self_driving=None,
         db=db, account_client=acc, event_client=evt, ticket_client=tkt,
     )
     try:
         transaction_service.create_registration(
-            user_id="u-1", event_id="e-1",
+            user_id="user_006", event_id="event_005",
             request_guest_count=None, request_diet_type=None, request_self_driving=None,
             db=db, account_client=acc, event_client=evt, ticket_client=tkt,
         )
@@ -143,13 +134,13 @@ def test_auto_waitlist():
     reset_db()
     db = SessionLocal()
     acc, evt, tkt = make_clients(
-        profiles={f"u-{i}": make_profile(f"u-{i}") for i in range(4)},
-        events={"e-1": make_event("e-1", ticket_limit=2)},
+        profiles={user_id: make_profile(user_id) for user_id in USER_IDS[:4]},
+        events={"event_005": make_event("event_005", ticket_limit=2)},
     )
     statuses = []
     for i in range(4):
         tx = transaction_service.create_registration(
-            user_id=f"u-{i}", event_id="e-1",
+            user_id=USER_IDS[i], event_id="event_005",
             request_guest_count=None, request_diet_type=None, request_self_driving=None,
             db=db, account_client=acc, event_client=evt, ticket_client=tkt,
         )
@@ -167,30 +158,30 @@ def test_cancel_promotes_waitlist():
     db = SessionLocal()
     deadline = now + timedelta(days=5)
     acc, evt, tkt = make_clients(
-        profiles={f"u-{i}": make_profile(f"u-{i}") for i in range(3)},
-        events={"e-1": make_event("e-1", ticket_limit=2, cancellation_deadline=deadline)},
+        profiles={user_id: make_profile(user_id) for user_id in USER_IDS[:3]},
+        events={"event_005": make_event("event_005", ticket_limit=2, cancellation_deadline=deadline)},
     )
     txs = []
     for i in range(3):
         tx = transaction_service.create_registration(
-            user_id=f"u-{i}", event_id="e-1",
+            user_id=USER_IDS[i], event_id="event_005",
             request_guest_count=None, request_diet_type=None, request_self_driving=None,
             db=db, account_client=acc, event_client=evt, ticket_client=tkt,
         )
         txs.append(tx)
-    # u-0 confirmed, u-1 confirmed, u-2 waitlist#1
+    # user_005 confirmed, user_006 confirmed, user_007 waitlist#1
     assert txs[2].status == "waitlist"
 
-    # u-0 cancels → u-2 should be promoted
+    # user_005 cancels → user_007 should be promoted
     cancelled, promoted = transaction_service.cancel_registration(
         transaction_id=txs[0].transaction_id,
-        current_user=CurrentUser(user_id="u-0", role="employee"),
+        current_user=CurrentUser(user_id="user_005", role="employee"),
         db=db, event_client=evt, ticket_client=tkt,
     )
     assert cancelled.status == "cancelled"
     assert cancelled.ticket_id is None  # 清掉了
     assert promoted is not None
-    assert promoted.user_id == "u-2"
+    assert promoted.user_id == "user_007"
     assert promoted.status == "confirmed"
     assert promoted.waitlist_number is None
     assert promoted.ticket_id == "ticket-3"  # 新發
@@ -204,22 +195,22 @@ def test_cancel_waitlist():
     reset_db()
     db = SessionLocal()
     acc, evt, tkt = make_clients(
-        profiles={f"u-{i}": make_profile(f"u-{i}") for i in range(3)},
-        events={"e-1": make_event("e-1", ticket_limit=1, cancellation_deadline=now+timedelta(days=5))},
+        profiles={user_id: make_profile(user_id) for user_id in USER_IDS[:3]},
+        events={"event_005": make_event("event_005", ticket_limit=1, cancellation_deadline=now+timedelta(days=5))},
     )
     txs = []
     for i in range(3):
         tx = transaction_service.create_registration(
-            user_id=f"u-{i}", event_id="e-1",
+            user_id=USER_IDS[i], event_id="event_005",
             request_guest_count=None, request_diet_type=None, request_self_driving=None,
             db=db, account_client=acc, event_client=evt, ticket_client=tkt,
         )
         txs.append(tx)
-    # u-0 confirmed, u-1 waitlist#1, u-2 waitlist#2
-    # u-1 cancels (waitlist) → 沒人被升
+    # user_005 confirmed, user_006 waitlist#1, user_007 waitlist#2
+    # user_006 cancels (waitlist) → 沒人被升
     cancelled, promoted = transaction_service.cancel_registration(
         transaction_id=txs[1].transaction_id,
-        current_user=CurrentUser(user_id="u-1", role="employee"),
+        current_user=CurrentUser(user_id="user_006", role="employee"),
         db=db, event_client=evt, ticket_client=tkt,
     )
     assert cancelled.status == "cancelled"
@@ -232,18 +223,18 @@ def test_no_cancellation_deadline_blocks_cancel():
     reset_db()
     db = SessionLocal()
     acc, evt, tkt = make_clients(
-        profiles={"u-1": make_profile("u-1")},
-        events={"e-1": make_event("e-1", ticket_limit=5, cancellation_deadline=None)},
+        profiles={"user_006": make_profile("user_006")},
+        events={"event_005": make_event("event_005", ticket_limit=5, cancellation_deadline=None)},
     )
     tx = transaction_service.create_registration(
-        user_id="u-1", event_id="e-1",
+        user_id="user_006", event_id="event_005",
         request_guest_count=None, request_diet_type=None, request_self_driving=None,
         db=db, account_client=acc, event_client=evt, ticket_client=tkt,
     )
     try:
         transaction_service.cancel_registration(
             transaction_id=tx.transaction_id,
-            current_user=CurrentUser(user_id="u-1", role="employee"),
+            current_user=CurrentUser(user_id="user_006", role="employee"),
             db=db, event_client=evt, ticket_client=tkt,
         )
         assert False, "should have raised"
@@ -258,18 +249,18 @@ def test_cancellation_deadline_passed():
     db = SessionLocal()
     past = now - timedelta(days=1)
     acc, evt, tkt = make_clients(
-        profiles={"u-1": make_profile("u-1")},
-        events={"e-1": make_event("e-1", ticket_limit=5, cancellation_deadline=past)},
+        profiles={"user_006": make_profile("user_006")},
+        events={"event_005": make_event("event_005", ticket_limit=5, cancellation_deadline=past)},
     )
     tx = transaction_service.create_registration(
-        user_id="u-1", event_id="e-1",
+        user_id="user_006", event_id="event_005",
         request_guest_count=None, request_diet_type=None, request_self_driving=None,
         db=db, account_client=acc, event_client=evt, ticket_client=tkt,
     )
     try:
         transaction_service.cancel_registration(
             transaction_id=tx.transaction_id,
-            current_user=CurrentUser(user_id="u-1", role="employee"),
+            current_user=CurrentUser(user_id="user_006", role="employee"),
             db=db, event_client=evt, ticket_client=tkt,
         )
         assert False
@@ -283,12 +274,12 @@ def test_welfare_member_blocked():
     reset_db()
     db = SessionLocal()
     acc, evt, tkt = make_clients(
-        profiles={"u-1": make_profile("u-1", role="welfare_member")},
-        events={"e-1": make_event("e-1", ticket_limit=5)},
+        profiles={"user_006": make_profile("user_006", role="welfare_member")},
+        events={"event_005": make_event("event_005", ticket_limit=5)},
     )
     try:
         transaction_service.create_registration(
-            user_id="u-1", event_id="e-1",
+            user_id="user_006", event_id="event_005",
             request_guest_count=None, request_diet_type=None, request_self_driving=None,
             db=db, account_client=acc, event_client=evt, ticket_client=tkt,
         )
@@ -303,12 +294,12 @@ def test_locked_user_blocked():
     reset_db()
     db = SessionLocal()
     acc, evt, tkt = make_clients(
-        profiles={"u-1": make_profile("u-1", locked=True)},
-        events={"e-1": make_event("e-1", ticket_limit=5)},
+        profiles={"user_006": make_profile("user_006", locked=True)},
+        events={"event_005": make_event("event_005", ticket_limit=5)},
     )
     try:
         transaction_service.create_registration(
-            user_id="u-1", event_id="e-1",
+            user_id="user_006", event_id="event_005",
             request_guest_count=None, request_diet_type=None, request_self_driving=None,
             db=db, account_client=acc, event_client=evt, ticket_client=tkt,
         )
@@ -323,11 +314,11 @@ def test_guest_blocked():
     reset_db()
     db = SessionLocal()
     acc, evt, tkt = make_clients(
-        profiles={"u-1": make_profile("u-1")},
-        events={"e-1": make_event("e-1", ticket_limit=5, guest_allowed=False)},
+        profiles={"user_006": make_profile("user_006")},
+        events={"event_005": make_event("event_005", ticket_limit=5, guest_allowed=False)},
     )
     tx = transaction_service.create_registration(
-        user_id="u-1", event_id="e-1",
+        user_id="user_006", event_id="event_005",
         request_guest_count=2, request_diet_type=None, request_self_driving=None,
         db=db, account_client=acc, event_client=evt, ticket_client=tkt,
     )
@@ -341,17 +332,17 @@ def test_update_registration():
     reset_db()
     db = SessionLocal()
     acc, evt, tkt = make_clients(
-        profiles={"u-1": make_profile("u-1")},
-        events={"e-1": make_event("e-1", ticket_limit=None, guest_allowed=True)},
+        profiles={"user_006": make_profile("user_006")},
+        events={"event_005": make_event("event_005", ticket_limit=None, guest_allowed=True)},
     )
     tx = transaction_service.create_registration(
-        user_id="u-1", event_id="e-1",
+        user_id="user_006", event_id="event_005",
         request_guest_count=0, request_diet_type=None, request_self_driving=None,
         db=db, account_client=acc, event_client=evt, ticket_client=tkt,
     )
     updated = transaction_service.update_registration(
         transaction_id=tx.transaction_id,
-        current_user=CurrentUser(user_id="u-1", role="employee"),
+        current_user=CurrentUser(user_id="user_006", role="employee"),
         guest_count=3, diet_type="veg", self_driving=None,
         db=db, event_client=evt,
     )
@@ -365,24 +356,24 @@ def test_no_show_punishment():
     reset_db()
     db = SessionLocal()
     acc, evt, tkt = make_clients(
-        profiles={f"u-{i}": make_profile(f"u-{i}") for i in range(3)},
-        events={"e-1": make_event("e-1", ticket_limit=5)},
+        profiles={user_id: make_profile(user_id) for user_id in USER_IDS[:3]},
+        events={"event_005": make_event("event_005", ticket_limit=5)},
     )
     txs = []
     for i in range(3):
         tx = transaction_service.create_registration(
-            user_id=f"u-{i}", event_id="e-1",
+            user_id=USER_IDS[i], event_id="event_005",
             request_guest_count=None, request_diet_type=None, request_self_driving=None,
             db=db, account_client=acc, event_client=evt, ticket_client=tkt,
         )
         txs.append(tx)
-    # 假設 ticket-1 與 ticket-3 沒 check-in（u-0, u-2 爽約）
+    # 假設 ticket-1 與 ticket-3 沒 check-in（user_005, user_007 爽約）
     tkt.list_unused_tickets.return_value = [txs[0].ticket_id, txs[2].ticket_id]
 
     result = no_show_service.punish_no_shows_for_event(
-        event_id="e-1", db=db, ticket_client=tkt, account_client=acc,
+        event_id="event_005", db=db, ticket_client=tkt, account_client=acc,
     )
-    assert sorted(result.punished_user_ids) == ["u-0", "u-2"]
+    assert sorted(result.punished_user_ids) == ["user_005", "user_007"]
     assert len(result.errors) == 0
     db.close()
     print("[PASS] test_no_show_punishment")

@@ -1,7 +1,7 @@
-# Account Service — Internal API Spec
+# Internal API Spec
 
-這份文件給其他微服務（例如 Transaction Service）使用。
-所有 internal endpoint 都需要帶 `X-Internal-Key` header，key 值請向帳號服務維護者索取(透過 `.env` 中的 `INTERNAL_API_KEY`)。
+這份文件給微服務之間互相呼叫使用。
+所有 internal endpoint 都需要帶 `X-Internal-Key` header，key 值取自共用的 `.env` 設定 `INTERNAL_API_KEY`。
 
 ---
 
@@ -17,6 +17,11 @@ X-Internal-Key: <shared_secret>
 - key 值錯誤 → `401 Unauthorized`
 
 ---
+
+# Account Service — Internal API Spec
+
+Base URL（K8s 內部）：`http://account-service:8000`
+Base URL（local）：`http://localhost:8000`
 
 ## Endpoints
 
@@ -118,6 +123,78 @@ Transaction Service 不需要主動呼叫任何 API 來解鎖，時間到了會�
 ---
 ---
 
+# Event Service — Internal API Spec
+
+Base URL（K8s 內部）：`http://event-service:8003`
+Base URL（local）：`http://localhost:8003`
+
+認證方式與 Account Service 段落相同（`X-Internal-Key` header），key 值取自共用的 `INTERNAL_API_KEY`。
+
+## Endpoints
+
+### GET `/v1/internal/events/{eventId}`
+
+取得單一活動詳情，供 Transaction Service / Ticket Service 做跨服務查詢使用。
+回傳格式與公開端點 `GET /v1/events/{eventId}` 相同，但不需要使用者 Bearer token。
+
+**Path Parameters**
+
+| 參數 | 型別 | 說明 |
+|------|------|------|
+| eventId | string | 活動 ID |
+
+**Request Headers**
+
+```http
+X-Internal-Key: <shared_secret>
+```
+
+**Response 200**
+
+```json
+{
+  "data": {
+    "eventId": "event_002",
+    "name": "Family Day",
+    "description": "親子同樂活動",
+    "location": "Taipei",
+    "category": "family",
+    "guestAllowed": true,
+    "ticketLimit": 100,
+    "remainingTickets": 42,
+    "cancellationDeadline": "2026-06-01T00:00:00Z",
+    "latitude": 25.033,
+    "longitude": 121.565,
+    "checkinRadiusMeters": 100,
+    "eventStartTime": "2026-06-20T10:00:00Z",
+    "eventEndTime": "2026-06-20T12:00:00Z",
+    "registrationStart": "2026-05-01T00:00:00Z",
+    "registrationEnd": "2026-06-15T23:59:59Z",
+    "faqs": [],
+    "status": "registering",
+    "isDraft": false,
+    "createdAt": "2026-05-01T00:00:00Z",
+    "updatedAt": null
+  }
+}
+```
+
+**Error Responses**
+
+| Status | code | 說明 |
+|--------|------|------|
+| 401 | `INVALID_INTERNAL_KEY` | key 值錯誤 |
+| 404 | `EVENT_NOT_FOUND` | 活動不存在 |
+
+## 使用場景（Event Service）
+
+- **報名前資格/容量檢查**：Transaction Service 查活動狀態、報名期間、名額與取消截止時間。
+- **票券顯示與 check-in**：Ticket Service 查活動名稱、開始/結束時間、地點、座標與 check-in 半徑。
+- **跨服務查詢不可呼叫 public Event API**：`GET /v1/events/{eventId}` 需要使用者 Bearer token；service-to-service 一律呼叫 `GET /v1/internal/events/{eventId}`。
+
+---
+---
+
 # Ticket Service — Internal API Spec
 >
 > 本段落由 Transaction Service 提出，作為 Transaction → Ticket 跨服務互動的契約。
@@ -143,7 +220,7 @@ Base URL（local）：`http://localhost:8001`
 [使用者] → POST /v1/transactions → Transaction Service
                                         │
                                         ├─ GET registration-profile (Account internal)
-                                        ├─ GET event detail        (Event public)
+                                        ├─ GET event detail        (Event internal)
                                         └─ POST /v1/internal/tickets (Ticket internal)
 ```
 

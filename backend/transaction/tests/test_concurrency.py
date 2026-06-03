@@ -24,13 +24,13 @@ def test_concurrent_registration_no_oversell(db):
 
     n_users = 20
     ticket_limit = 1
-    event_id = "e-race"
+    event_id = "event_006"
 
     acc = FakeAccountClient()
     evt = FakeEventClient()
     evt.set_event(event_id, ticket_limit=ticket_limit)
     for i in range(n_users):
-        acc.set_profile(f"u-{i}")
+        acc.set_profile(f"user_test_{i:03d}")
 
     results: list[str] = []
     results_lock = threading.Lock()
@@ -55,7 +55,7 @@ def test_concurrent_registration_no_oversell(db):
         finally:
             session.close()
 
-    threads = [threading.Thread(target=worker, args=(f"u-{i}",)) for i in range(n_users)]
+    threads = [threading.Thread(target=worker, args=(f"user_test_{i:03d}",)) for i in range(n_users)]
     for t in threads:
         t.start()
     for t in threads:
@@ -87,7 +87,7 @@ def test_concurrent_cancel_and_register(db):
     db.query(Transaction).delete()
     db.commit()
 
-    event_id = "e-mix"
+    event_id = "event_007"
     ticket_limit = 3
     acc = FakeAccountClient()
     evt = FakeEventClient()
@@ -99,9 +99,9 @@ def test_concurrent_cancel_and_register(db):
     tkt = FakeTicketClient()
     confirmed_ids = []
     for i in range(8):
-        acc.set_profile(f"u-{i}")
+        acc.set_profile(f"user_test_{i:03d}")
         tx = transaction_service.create_registration(
-            user_id=f"u-{i}", event_id=event_id,
+            user_id=f"user_test_{i:03d}", event_id=event_id,
             request_guest_count=None, request_diet_type=None, request_self_driving=None,
             db=setup_session, account_client=acc, event_client=evt, ticket_client=tkt,
         )
@@ -124,8 +124,8 @@ def test_concurrent_cancel_and_register(db):
 
     # 同時取消 2 個 confirmed（會觸發補位）
     threads = [
-        threading.Thread(target=canceller, args=(confirmed_ids[0], "u-0")),
-        threading.Thread(target=canceller, args=(confirmed_ids[1], "u-1")),
+        threading.Thread(target=canceller, args=(confirmed_ids[0], "user_test_000")),
+        threading.Thread(target=canceller, args=(confirmed_ids[1], "user_test_001")),
     ]
     for t in threads:
         t.start()

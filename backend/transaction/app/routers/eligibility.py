@@ -17,6 +17,7 @@ from app.core.external import (
     get_event_client,
 )
 from app.core.response import success
+from app.schemas.transaction import EligibilityResponse
 from app.services import eligibility_service
 
 router = APIRouter()
@@ -29,7 +30,7 @@ _REASON_MAP = {
     # 其他（draft / 未開放 / 截止 / 結束 / 角色）直接沿用內部 code
 }
 
-@router.get("/events/{event_id}/eligibility", response_model=dict)
+@router.get("/events/{event_id}/eligibility", response_model=EligibilityResponse)
 def check_eligibility(
     event_id: str = Path(..., min_length=1, max_length=50),
     current_user: CurrentUser = Depends(role_required("employee")),

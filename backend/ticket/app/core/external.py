@@ -31,10 +31,18 @@ def _parse_iso(value: str | None) -> datetime | None:
     return dt
 
 class EventClient:
-    def __init__(self, base_url: str | None = None, timeout: float = 5.0):
+    def __init__(
+        self,
+        base_url: str | None = None,
+        internal_key: str | None = None,
+        timeout: float = 5.0,
+        transport: httpx.BaseTransport | None = None,
+    ):
         self._client = httpx.Client(
             base_url=base_url or settings.event_service_url,
             timeout=timeout,
+            headers={"X-Internal-Key": internal_key or settings.internal_api_key},
+            transport=transport,
         )
 
     def close(self) -> None:
@@ -42,7 +50,7 @@ class EventClient:
 
     def get_event(self, event_id: str) -> EventInfo:
         try:
-            response = self._client.get(f"/v1/events/{event_id}")
+            response = self._client.get(f"/v1/internal/events/{event_id}")
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             status = exc.response.status_code
@@ -52,15 +60,17 @@ class EventClient:
             raise ExternalServiceError("EventService", f"network error: {exc}") from exc
 
         data = response.json().get("data", {})
+        
+        # 確保即使欄位不存在也能解析，避免崩潰
         return EventInfo(
-            event_id=data["eventId"],
-            name=data["name"],
-            location=data["location"],
+            event_id=data.get("eventId", event_id),
+            name=data.get("name", "Unknown Event"),
+            location=data.get("location", "Unknown Location"),
             latitude=float(data["latitude"]) if data.get("latitude") is not None else 0.0,
             longitude=float(data["longitude"]) if data.get("longitude") is not None else 0.0,
             checkin_radius_meters=int(float(data["checkinRadiusMeters"])) if data.get("checkinRadiusMeters") is not None else 0,
-            event_start_time=_parse_iso(data["eventStartTime"]),
-            event_end_time=_parse_iso(data["eventEndTime"]),
+            event_start_time=_parse_iso(data.get("eventStartTime")),
+            event_end_time=_parse_iso(data.get("eventEndTime")),
         )
 
 class AccountClient:

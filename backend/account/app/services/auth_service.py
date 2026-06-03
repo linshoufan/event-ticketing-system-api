@@ -1,9 +1,7 @@
-import uuid
-
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.external_db import verify_employee
+from app.core.external_db import employee_exists, verify_employee
 from app.core.security import create_access_token
 from app.models.user import User
 
@@ -12,9 +10,7 @@ def login(employee_id: str, password: str, role: str | None, db: Session) -> dic
     # 1. 去外部員工 DB 驗證
     employee = verify_employee(employee_id=employee_id, password=password)
     if employee is None:
-        # 先查有沒有這個 employee_id
-        from app.core.external_db import _MOCK_EMPLOYEES
-        if employee_id not in _MOCK_EMPLOYEES:
+        if not employee_exists(employee_id):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"code": "EMPLOYEE_NOT_FOUND", "message": "Employee not found"},
@@ -31,7 +27,7 @@ def login(employee_id: str, password: str, role: str | None, db: Session) -> dic
     if user is None:
         # 第一次登入，建立 user
         user = User(
-            user_id=str(uuid.uuid4()),
+            user_id=employee_id,
             username=employee_id,
             email=employee["email"],
             role="employee",

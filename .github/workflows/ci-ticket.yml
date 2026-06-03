@@ -7,6 +7,7 @@ on:
       - "backend/ticket/**"
       - "scripts/**"
       - "requirements.txt"
+      - ".github/workflows/ci-ticket.yml"
 
 jobs:
   lint-and-test:
@@ -47,7 +48,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -62,4 +63,4 @@ jobs:
 
       - name: Run tests
         working-directory: backend/ticket
-        run: PYTHONPATH=. python -m unittest discover tests/ -v
+        run: pytest tests/ -v --tb=short

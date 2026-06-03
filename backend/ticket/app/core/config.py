@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 
     # Other services
     account_service_url: str = "http://localhost:8000"
-    event_service_url: str = "http://localhost:3000"
+    event_service_url: str = "http://localhost:8003"
 
     # Environment
     env: str = "local"

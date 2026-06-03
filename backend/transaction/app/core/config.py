@@ -24,10 +24,8 @@ class Settings(BaseSettings):
 
     # 其他服務的 base URL（Phase 3 跨服務呼叫會用）
     account_service_url: str = "http://localhost:8000"
-    event_service_url: str = "http://localhost:3000"
+    event_service_url: str = "http://localhost:8003"
     ticket_service_url: str = "http://localhost:8001"
-
-    ticket_service_enabled: bool = False
 
     # Environment
     env: str = "local"
