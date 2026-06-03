@@ -33,8 +33,8 @@ class EventService:
         next_id = 1
         if not next_available_id:
             if record_num == 0:
-                self.repo.create_event_id()
-            elif 0 < record_num <= event_num_limit:
+                self.repo.create_event_id(None)
+            elif 0 < record_num and record_num <= event_num_limit:
                 greatest_used_id = self.repo.get_greatest_occupied_id()
                 if greatest_used_id:
                     next_id = greatest_used_id.id + 1
