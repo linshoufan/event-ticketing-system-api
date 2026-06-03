@@ -18,7 +18,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Event Service",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    redirect_slashes=False,
 )
 
 @app.exception_handler(HTTPException)
