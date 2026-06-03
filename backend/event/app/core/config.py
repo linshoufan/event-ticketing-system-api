@@ -21,6 +21,15 @@ class Settings(BaseSettings):
     # Internal API
     internal_api_key: str = "dev-internal-key"
 
+    # CORS
+    cors_origins: str = (
+        "http://localhost:3000,"
+        "http://localhost:5173,"
+        "https://event-ticketing-system-frontend-eight.vercel.app"
+    )
+    cors_methods: str = "GET,POST,PATCH,DELETE,OPTIONS"
+    cors_headers: str = "Authorization,Content-Type,X-Internal-Key"
+
     # Environment
     env: str = "local"
 
