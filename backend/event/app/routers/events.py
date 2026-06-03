@@ -13,7 +13,7 @@ from ..schemas.event import (
 )
 from ..services.event_service import DuplicateEventNameError, EventService
 from ..repositories.event_repository import EventRepository
-from ..core.scheduler import update_event_statuses
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/v1/events", tags=["events"])
 
@@ -29,8 +29,12 @@ def create_event(
     _ = Depends(role_required("welfare_member"))
 ):
     try:
-        db_event = service.create_event(event_in)
-        update_event_statuses()
+        now = datetime.now(timezone.utc)
+        updated = service.update_statuses(now)
+
+        if any(updated.values()):
+            print(f"[scheduler] Updated event statuses: {updated['registering']} registering, {updated['closed']} closed, {updated['ended']} ended.")
+
     except DuplicateEventNameError:
         raise HTTPException(
             status_code=409,
