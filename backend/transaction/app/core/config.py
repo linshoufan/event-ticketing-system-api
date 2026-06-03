@@ -27,6 +27,15 @@ class Settings(BaseSettings):
     event_service_url: str = "http://localhost:8003"
     ticket_service_url: str = "http://localhost:8001"
 
+    # CORS
+    cors_origins: str = (
+        "http://localhost:3000,"
+        "http://localhost:5173,"
+        "https://event-ticketing-system-frontend-eight.vercel.app"
+    )
+    cors_methods: str = "GET,POST,PATCH,DELETE,OPTIONS"
+    cors_headers: str = "Authorization,Content-Type,X-Internal-Key"
+
     # Environment
     env: str = "local"
 
