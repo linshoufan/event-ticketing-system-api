@@ -1,6 +1,6 @@
 # Event Management API
 
-> 最後更新：2026-06-02
+> 最後更新：2026-06-03
 
 ---
 
@@ -11,11 +11,9 @@
 3. [快速啟動](#3-快速啟動)
 4. [身分驗證與權限](#4-身分驗證與權限)
 5. [API SPEC — 現有功能](#5-api-spec--現有功能)
-6. [API SPEC — 批量操作（新增）](#6-api-spec--批量操作新增)
-7. [資料模型](#7-資料模型)
-8. [整合新功能的步驟](#8-整合新功能的步驟)
-9. [錯誤碼一覽](#9-錯誤碼一覽)
-10. [測試案例](#10-測試案例)
+6. [資料模型](#6-資料模型)
+7. [錯誤碼一覽](#7-錯誤碼一覽)
+8. [測試案例](#8-測試案例)
 
 ---
 
@@ -23,26 +21,29 @@
 
 ```
 src/
-├── app.ts                        # Express App（需掛載 batchRouter，見第 8 節）
-├── server.ts                     # 啟動入口
+├── app                           # Express App
+├── server                        # 啟動入口
 ├── controller/
-│   ├── event.controller.ts       # 單筆 CRUD
-│   └── batch.controller.ts       # 批量 CRUD（新增）
+│   └── event.controller          # CRUD 邏輯 / API 與資料庫溝通橋樑
+│
 ├── service/
-│   ├── event.service.ts          # 單筆業務邏輯
-│   └── batch.service.ts          # 批量業務邏輯（新增）
+│   └── event.service             # 下層資料庫讀寫溝通邏輯
+│
 ├── route/
-│   ├── event.route.ts            # /v1/events 路由
-│   └── batch.route.ts            # /v1/events/batch 路由（新增）
+│   └── event.route               # 負責導流不同 API Call
+│
 ├── schema/
-│   ├── event.schema.ts           # 單筆 Zod Schema
-│   └── batch.schema.ts           # 批量 Zod Schema（新增）
+│   └── event.schema              # 定義 Event Schema
+│
 ├── middlewares/
-│   └── auth.middleware.ts        # JWT 驗證 + 角色檢查（新增）
-├── model/event.model.ts
-├── interface/event.interface.ts
-├── validate/event.middleware.ts
-└── core/database.ts
+│   ├── auth.middleware           # JWT 驗證 + User 角色檢查
+│   └── schema.middleware         # 檢查傳輸資料 (格式、類別) 是否合乎 Schema
+│
+├── model/event.model
+├── interface/event.interface     # 定義 Event Class
+└── core/
+    ├── database                  # Database 設定
+    └── event.cron                # 自動排程 / 更新
 ```
 
 ---
@@ -83,17 +84,6 @@ npm run dev
 npm test
 ```
 
-`.env` 必要欄位：
-
-```env
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=yourpassword
-DB_NAME=event_db
-JWT_SECRET=your_strong_secret_here   # 新增：JWT 簽名金鑰
-```
-
 ---
 
 ## 4. 身分驗證與權限
@@ -102,25 +92,22 @@ JWT_SECRET=your_strong_secret_here   # 新增：JWT 簽名金鑰
 
 | 角色 | 值 | 說明 |
 |------|----|------|
-| `welfare_member` | `welfare_member` | 福委，可建立／更新／刪除活動 |
-| `employee` | `employee` | 一般員工，唯讀活動資料 |
-| `hr` | `hr` | HR，可查看報名與票券詳情 |
+| `welfare_member` | `welfare_member` | 福委成員，可建立／更新／刪除活動 |
+| `user` | `user` | 一般員工和HR，唯讀活動資料 |
 
-> **注意**：舊文件中的 `admin` 角色已廢除，`user` 角色已更名為 `employee`，請更新任何現有的 token payload 與測試 fixture。
+### 各端點權限一覽
 
-### 各端點權限矩陣
-
-| 端點 | welfare_member | employee | hr |
-|------|:--------------:|:--------:|:--:|
-| GET /v1/events | ✅ | ✅ | ✅ |
-| GET /v1/events/:id | ✅ | ✅ | ✅ |
-| POST /v1/events | ✅ | ❌ | ❌ |
-| PATCH /v1/events/:id | ✅ | ❌ | ❌ |
-| PATCH /v1/events (batch update) | ✅ | ❌ | ❌ |
-| DELETE /v1/events/:id | ✅ | ❌ | ❌ |
-| POST /v1/events/batch | ✅ | ❌ | ❌ |
-| POST /v1/events/batch/query | ✅ | ✅ | ✅ |
-| DELETE /v1/events/batch | ✅ | ❌ | ❌ |
+| 端點 | welfare_member | user |
+|------|:--------------:|:----:|
+| GET /v1/events | ✅ | ✅ |
+| GET /v1/events/:id | ✅ | ✅ |
+| POST /v1/events | ✅ | ❌ |
+| PATCH /v1/events/:id | ✅ | ❌ |
+| PATCH /v1/events (batch update) | ✅ | ❌ |
+| DELETE /v1/events/:id | ✅ | ❌ |
+| POST /v1/events/batch | ✅ | ❌ |
+| POST /v1/events/batch/query | ✅ | ✅ |
+| DELETE /v1/events/batch | ✅ | ❌ |
 
 ### JWT 格式
 
@@ -134,13 +121,11 @@ Authorization: Bearer <token>
 {
   "userId": "u_001",
   "email": "user@example.com",
-  "role": "welfare_member",
-  "iat": 1748476800,
-  "exp": 1748505600
+  "role": "welfare_member"
 }
 ```
 
-**產生測試 Token（開發用）**
+**產生測試 Token（開發/測試用）**
 ```ts
 import { generateToken, UserRole } from './src/middlewares/auth.middleware';
 
@@ -180,7 +165,7 @@ Base URL: `http://localhost:3000/v1`
 }
 ```
 
-**Response 201**
+**Response**
 ```json
 {
   "data": {
@@ -194,7 +179,7 @@ Base URL: `http://localhost:3000/v1`
 ---
 
 ### GET /v1/events
-查詢活動列表（分頁 + 篩選）
+查詢活動列表（單筆查詢或分頁 + 篩選）
 
 **Query Parameters**
 
@@ -208,7 +193,7 @@ Base URL: `http://localhost:3000/v1`
 | `startDate` | string (ISO 8601) | 活動開始時間下限 |
 | `endDate` | string (ISO 8601) | 活動開始時間上限 |
 
-**Response 200**
+**Response**
 ```json
 {
   "data": [ ...EventEntity ],
@@ -223,12 +208,12 @@ Base URL: `http://localhost:3000/v1`
 ### GET /v1/events/:eventId
 取得單一活動詳情
 
-**Response 200**
+**Response**
 ```json
 { "data": { ...EventEntity } }
 ```
 
-**Response 404**
+**Response**
 ```json
 { "error": { "code": "EVENT_NOT_FOUND", "message": "活動不存在" } }
 ```
@@ -236,14 +221,14 @@ Base URL: `http://localhost:3000/v1`
 ---
 
 ### PATCH /v1/events/:eventId
-更新單一活動（部分更新）
+更新活動 (單筆)
 
 **Request Body**（所有欄位皆為選填）
 ```json
 { "ticketLimit": 500, "guestAllowed": false }
 ```
 
-**Response 200**
+**Response**
 ```json
 { "data": { "updated": true, "updatedAt": "2026-05-29T12:00:00Z" } }
 ```
@@ -263,7 +248,7 @@ Base URL: `http://localhost:3000/v1`
 }
 ```
 
-**Response 207**
+**Response**
 ```json
 {
   "data": {
@@ -276,159 +261,43 @@ Base URL: `http://localhost:3000/v1`
 ---
 
 ### DELETE /v1/events/:eventId
-刪除單一活動（僅限尚未發布或尚未開始報名的活動）
+刪除活動（限尚未發布或尚未開始報名的活動）
 
-**Response 200**
+**Response**
 ```json
 { "data": { "deleted": true } }
 ```
 
-**Response 404**
+**Response (找不到活動)**
 ```json
 { "error": { "code": "EVENT_NOT_FOUND", "message": "活動不存在" } }
 ```
 
-**Response 409**
+**Response (活動不能刪除)**
 ```json
 { "error": { "code": "EVENT_NOT_DELETABLE", "message": "活動不符合刪除條件" } }
 ```
 
 ---
 
-## 6. API SPEC — 批量操作（新增）
-
-> 所有批量端點皆需要 `Authorization: Bearer <token>` 標頭。
-
----
-
-### POST /v1/events/batch
-批量新增活動（限 welfare_member）
-
-**Request Body**
-```json
-{
-  "events": [
-    {
-      "name": "Q1 員工旅遊",
-      "description": "北海岸一日遊",
-      "location": "石門水庫",
-      "category": "旅遊",
-      "guestAllowed": false,
-      "remainingTickets": 50,
-      "eventStartTime":  "2027-01-15T08:00:00Z",
-      "eventEndTime":    "2027-01-15T20:00:00Z",
-      "registrationStart": "2026-12-01T00:00:00Z",
-      "registrationEnd":   "2026-12-31T23:59:59Z",
-      "status": "not_open",
-      "isDraft": true
-    }
-  ]
-}
-```
-
-**限制**：單次最多 100 筆
-
-**Response 201**（全部成功）
-```json
-{
-  "data": {
-    "succeeded": [{ "eventId": "c2d1e0f3b4", "name": "Q1 員工旅遊" }],
-    "failed":    []
-  }
-}
-```
-
-**Response 207**（部分成功）
-```json
-{
-  "data": {
-    "succeeded": [{ "eventId": "c2d1e0f3b4", "name": "Q1 員工旅遊" }],
-    "failed":    [{ "index": 1, "name": "重複活動", "error": "duplicate key value" }]
-  }
-}
-```
-
-**Response 422**（全部失敗）
-
----
-
-### POST /v1/events/batch/query
-批量查詢活動（所有已登入使用者）
-
-**Request Body**
-```json
-{
-  "eventIds": ["a3f9b2c1d0", "b1e8a4f2c9", "nonexistent_id"]
-}
-```
-
-**限制**：單次最多 200 筆
-
-**Response 200**
-```json
-{
-  "data": {
-    "found":    [ ...EventEntity ],
-    "notFound": ["nonexistent_id"],
-    "total":    2
-  }
-}
-```
-
----
-
-### DELETE /v1/events/batch
-批量刪除活動（限 welfare_member）
-
-**Request Body**
-```json
-{
-  "eventIds": ["a3f9b2c1d0", "b1e8a4f2c9"]
-}
-```
-
-**限制**：單次最多 100 筆
-
-**Response 200**（全部成功）
-```json
-{
-  "data": {
-    "succeeded": ["a3f9b2c1d0", "b1e8a4f2c9"],
-    "failed":    []
-  }
-}
-```
-
-**Response 207**（部分成功）
-```json
-{
-  "data": {
-    "succeeded": ["a3f9b2c1d0"],
-    "failed":    [{ "eventId": "b1e8a4f2c9", "error": "EVENT_NOT_FOUND" }]
-  }
-}
-```
-
----
-
-## 7. 資料模型
+## 6. 資料模型
 
 ### EventEntity（資料表：`events`）
 
 | 欄位 | 型別 | 說明 |
 |------|------|------|
-| `eventId` | varchar(50) PK | UUID 前 10 碼 |
+| `eventId` | varchar(50) | 每筆活動紀錄 ID 不重複 |
 | `name` | varchar(255) | 活動名稱 |
 | `description` | text | 活動說明 |
 | `location` | varchar(255) | 地點 |
-| `category` | varchar(50) | 分類（有 Index） |
+| `category` | varchar(50) | 分類 |
 | `guestAllowed` | boolean | 是否允許外部人員 |
 | `ticketLimit` | integer \| null | 報名上限（null = 無限制） |
 | `remainingTickets` | integer | 剩餘名額 |
 | `cancellationDeadline` | timestamptz \| null | 取消截止日 |
-| `latitude` | decimal(9,6) | 緯度 |
-| `longitude` | decimal(9,6) | 經度 |
-| `checkinRadiusMeters` | decimal(9,6) | 打卡範圍（公尺） |
+| `latitude` | decimal(20,16) | 緯度 |
+| `longitude` | decimal(20,16) | 經度 |
+| `checkinRadiusMeters` | integer | 打卡範圍（公尺） |
 | `eventStartTime` | timestamptz | 活動開始時間 |
 | `eventEndTime` | timestamptz | 活動結束時間 |
 | `registrationStart` | timestamptz | 報名開始時間 |
@@ -451,48 +320,7 @@ Base URL: `http://localhost:3000/v1`
 
 ---
 
-## 8. 整合新功能的步驟
-
-### Step 1：安裝 jsonwebtoken
-
-```bash
-npm install jsonwebtoken
-npm install -D @types/jsonwebtoken
-```
-
-### Step 2：在 `.env` 加入 JWT_SECRET
-
-```env
-JWT_SECRET=your_strong_secret_at_least_32_chars
-```
-
-### Step 3：在 `app.ts` 掛載 batchRouter
-
-```ts
-// app.ts 新增以下兩行
-import batchRouter from './route/batch.route';
-// ...
-app.use('/v1/events/batch', batchRouter);  // 必須在 eventRouter 之前註冊
-app.use('/v1/events', eventRouter);
-```
-
-> **注意**：`/v1/events/batch` 必須在 `/v1/events` 之前，否則 Express 會將 `batch` 誤判為 `:eventId`。
-
-### Step 4（選用）：在 event.route.ts 現有端點加上 Auth Guard
-
-```ts
-import { requireAuth, requireRole, UserRole } from '../middlewares/auth.middleware';
-
-const WRITE_ROLES = [UserRole.WELFARE_MEMBER];
-
-router.post('/',          requireAuth, requireRole(WRITE_ROLES), validate(createEventSchema), eventController.createEvent);
-router.patch('/:eventId', requireAuth, requireRole(WRITE_ROLES), validate(updateEventSchema), eventController.updateEvent);
-router.delete('/:eventId',requireAuth, requireRole(WRITE_ROLES), eventController.deleteEvent);
-```
-
----
-
-## 9. 錯誤碼一覽
+## 7. 錯誤碼
 
 | HTTP | Code | 說明 |
 |------|------|------|
@@ -503,16 +331,15 @@ router.delete('/:eventId',requireAuth, requireRole(WRITE_ROLES), eventController
 | 403 | `FORBIDDEN` | 角色權限不足 |
 | 404 | `EVENT_NOT_FOUND` | 指定活動不存在 |
 | 409 | `EVENT_NOT_DELETABLE` | 活動不符合刪除條件（已發布或已開始報名） |
-| 422 | — | 批量操作全部失敗 |
 | 500 | `INTERNAL_SERVER_ERROR` | 伺服器內部錯誤 |
 
 ---
 
-## 10. 測試案例
+## 8. 測試項目範例
 
 測試採用 **Jest + Supertest + SQLite3（in-memory）**。每個 `describe` 區塊在 `beforeAll` 建立測試資料庫並取得對應角色的 token，在 `afterAll` 清除資料。
 
-### 10.1 Auth Middleware
+### 8.1 Auth Middleware
 
 ```ts
 describe('Auth Middleware', () => {
@@ -564,7 +391,7 @@ describe('Auth Middleware', () => {
 
 ---
 
-### 10.2 POST /v1/events — 單筆建立
+### 8.2 POST /v1/events — 單筆建立
 
 ```ts
 describe('POST /v1/events', () => {
@@ -616,7 +443,7 @@ describe('POST /v1/events', () => {
 
 ---
 
-### 10.3 GET /v1/events — 列表查詢
+### 8.3 GET /v1/events — 列表查詢
 
 ```ts
 describe('GET /v1/events', () => {
@@ -649,7 +476,7 @@ describe('GET /v1/events', () => {
 
 ---
 
-### 10.4 PATCH /v1/events — 批量更新
+### 8.4 PATCH /v1/events — 批量更新
 
 ```ts
 describe('PATCH /v1/events (batch update)', () => {
@@ -676,137 +503,7 @@ describe('PATCH /v1/events (batch update)', () => {
 
 ---
 
-### 10.5 POST /v1/events/batch — 批量新增
-
-```ts
-describe('POST /v1/events/batch', () => {
-  const token = generateToken({ userId: 'u_wm', email: 'wm@b.com', role: UserRole.WELFARE_MEMBER });
-
-  const validEvent = {
-    name: 'Q1 員工旅遊',
-    description: '北海岸一日遊',
-    location: '石門水庫',
-    category: '旅遊',
-    guestAllowed: false,
-    remainingTickets: 50,
-    eventStartTime:    '2027-01-15T08:00:00Z',
-    eventEndTime:      '2027-01-15T20:00:00Z',
-    registrationStart: '2026-12-01T00:00:00Z',
-    registrationEnd:   '2026-12-31T23:59:59Z',
-    status:  'not_open',
-    isDraft: true,
-  };
-
-  it('should return 201 when all events are created successfully', async () => {
-    const res = await request(app)
-      .post('/v1/events/batch')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ events: [validEvent] });
-    expect(res.status).toBe(201);
-    expect(res.body.data.succeeded).toHaveLength(1);
-    expect(res.body.data.failed).toHaveLength(0);
-  });
-
-  it('should return 207 on partial success', async () => {
-    const duplicate = { ...validEvent }; // 重複名稱觸發 DB 衝突
-    const res = await request(app)
-      .post('/v1/events/batch')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ events: [validEvent, duplicate] });
-    expect(res.status).toBe(207);
-    expect(res.body.data.failed.length).toBeGreaterThan(0);
-  });
-
-  it('should return 400 when events array exceeds 100 items', async () => {
-    const tooMany = Array(101).fill(validEvent);
-    const res = await request(app)
-      .post('/v1/events/batch')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ events: tooMany });
-    expect(res.status).toBe(400);
-  });
-
-  it('should return 403 for employee role', async () => {
-    const empToken = generateToken({ userId: 'u_emp', email: 'e@b.com', role: UserRole.EMPLOYEE });
-    const res = await request(app)
-      .post('/v1/events/batch')
-      .set('Authorization', `Bearer ${empToken}`)
-      .send({ events: [validEvent] });
-    expect(res.status).toBe(403);
-  });
-});
-```
-
----
-
-### 10.6 POST /v1/events/batch/query — 批量查詢
-
-```ts
-describe('POST /v1/events/batch/query', () => {
-  const token = generateToken({ userId: 'u_emp', email: 'emp@b.com', role: UserRole.EMPLOYEE });
-
-  it('should return found and notFound arrays', async () => {
-    const res = await request(app)
-      .post('/v1/events/batch/query')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ eventIds: [existingId, 'ghost_id'] });
-    expect(res.status).toBe(200);
-    expect(res.body.data.found).toHaveLength(1);
-    expect(res.body.data.notFound).toContain('ghost_id');
-  });
-
-  it('should return 400 when eventIds exceeds 200 items', async () => {
-    const tooMany = Array(201).fill('id');
-    const res = await request(app)
-      .post('/v1/events/batch/query')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ eventIds: tooMany });
-    expect(res.status).toBe(400);
-  });
-});
-```
-
----
-
-### 10.7 DELETE /v1/events/batch — 批量刪除
-
-```ts
-describe('DELETE /v1/events/batch', () => {
-  const token = generateToken({ userId: 'u_wm', email: 'wm@b.com', role: UserRole.WELFARE_MEMBER });
-
-  it('should return 200 with all succeeded when all events are deletable', async () => {
-    const res = await request(app)
-      .delete('/v1/events/batch')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ eventIds: [draftEventId1, draftEventId2] });
-    expect(res.status).toBe(200);
-    expect(res.body.data.succeeded).toEqual([draftEventId1, draftEventId2]);
-    expect(res.body.data.failed).toHaveLength(0);
-  });
-
-  it('should return 207 when some events are not deletable', async () => {
-    const res = await request(app)
-      .delete('/v1/events/batch')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ eventIds: [draftEventId1, publishedEventId] });
-    expect(res.status).toBe(207);
-    expect(res.body.data.failed[0].error).toBe('EVENT_NOT_DELETABLE');
-  });
-
-  it('should return 400 when eventIds exceeds 100 items', async () => {
-    const tooMany = Array(101).fill('id');
-    const res = await request(app)
-      .delete('/v1/events/batch')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ eventIds: tooMany });
-    expect(res.status).toBe(400);
-  });
-});
-```
-
----
-
-### 10.8 DELETE /v1/events/:eventId — 單筆刪除
+### 8.5 DELETE /v1/events/:eventId — 單筆刪除
 
 ```ts
 describe('DELETE /v1/events/:eventId', () => {
