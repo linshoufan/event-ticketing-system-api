@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -13,7 +13,6 @@ from ..schemas.event import (
 )
 from ..services.event_service import DuplicateEventNameError, EventService
 from ..repositories.event_repository import EventRepository
-from datetime import datetime, timezone
 
 router = APIRouter(prefix="/v1/events", tags=["events"])
 
@@ -29,6 +28,7 @@ def create_event(
     _ = Depends(role_required("welfare_member"))
 ):
     try:
+        db_event = service.create_event(event_in)
         now = datetime.now(timezone.utc)
         updated = service.update_statuses(now)
 
