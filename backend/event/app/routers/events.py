@@ -20,6 +20,7 @@ def get_event_service(db: Session = Depends(get_db)) -> EventService:
     repo = EventRepository(db)
     return EventService(repo)
 
+@router.post("", response_model=dict, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 @router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
 def create_event(
     event_in: EventCreate, 
@@ -39,6 +40,7 @@ def create_event(
         "createdAt": db_event.created_at
     })
 
+@router.get("", response_model=PaginatedEventResponse, include_in_schema=False)
 @router.get("/", response_model=PaginatedEventResponse)
 def get_events(
     page: int = Query(1, ge=1),
@@ -85,6 +87,7 @@ def update_event(
         "updatedAt": db_event.updated_at
     })
 
+@router.patch("", response_model=dict, status_code=status.HTTP_207_MULTI_STATUS, include_in_schema=False)
 @router.patch("/", response_model=dict, status_code=status.HTTP_207_MULTI_STATUS)
 def batch_update_events(
     batch_in: BatchUpdateSchema, 

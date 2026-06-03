@@ -6,6 +6,15 @@ def test_create_event_success(client, valid_event_payload):
     assert response.json()["data"]["eventId"] is not None
 
 
+def test_create_event_accepts_path_without_trailing_slash(client, valid_event_payload):
+    c = client("welfare_member")
+    response = c.post("/v1/events", json=valid_event_payload, follow_redirects=False)
+
+    assert response.status_code == 201
+    assert "location" not in response.headers
+    assert response.json()["data"]["eventId"] is not None
+
+
 def test_create_event_duplicate_name_returns_conflict(client, valid_event_payload):
     c = client("welfare_member")
     assert c.post("/v1/events/", json=valid_event_payload).status_code == 201
