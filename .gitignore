@@ -163,6 +163,10 @@ ENV/
 env.bak/
 venv.bak/
 
+# Local database dumps / generated helper scripts
+*.sql
+scripts/generate_secrets.py
+
 # Spyder project settings
 .spyderproject
 .spyproject
