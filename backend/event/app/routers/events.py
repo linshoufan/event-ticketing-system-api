@@ -13,6 +13,7 @@ from ..schemas.event import (
 )
 from ..services.event_service import DuplicateEventNameError, EventService
 from ..repositories.event_repository import EventRepository
+from ..core.scheduler import update_event_statuses
 
 router = APIRouter(prefix="/v1/events", tags=["events"])
 
@@ -29,6 +30,7 @@ def create_event(
 ):
     try:
         db_event = service.create_event(event_in)
+        update_event_statuses()
     except DuplicateEventNameError:
         raise HTTPException(
             status_code=409,

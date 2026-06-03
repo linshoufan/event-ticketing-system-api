@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from ..models.event import Event, EventID
 from ..schemas.event import EventCreate, EventUpdate, BatchUpdateItem, normalize_status
 from ..repositories.event_repository import EventRepository
+from ..core.scheduler import update_event_statuses
 
 class DuplicateEventNameError(Exception):
     pass
@@ -145,6 +146,7 @@ class EventService:
                     "name": getattr(event_in, "name", None),
                     "error": self._format_batch_error(e),
                 })
+        update_event_statuses()
 
         return {"succeeded": succeeded, "failed": failed}
 
