@@ -121,7 +121,7 @@ class EventRepository:
     def get_latest_available_id(self) -> Query:
         query = self.db.query(EventID)
         total = query.count()
-        query = query.filter(EventID.isOccupied == False)
+        query = query.filter(not EventID.isOccupied)
         query.order_by(EventID.id.asc()).first()
 
         return query, total
