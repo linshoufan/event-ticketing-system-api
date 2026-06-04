@@ -118,10 +118,10 @@ def valid_event_payload():
         "guestAllowed": True,
         "ticketLimit": 100,
         "remainingTickets": 100,
-        "eventStartTime": "2026-06-025T09:00:00Z",
-        "eventEndTime": "2026-06-25T18:00:00Z",
+        "eventStartTime": "2026-06-02T09:00:00Z",
+        "eventEndTime": "2026-06-02T18:00:00Z",
         "registrationStart": "2026-06-01T09:00:00Z",
-        "registrationEnd": "2026-06-10T18:00:00Z",
+        "registrationEnd": "2026-06-01T18:00:00Z",
         "status": "not_open",
         "isDraft": False
     }
