@@ -111,8 +111,8 @@ class EventService:
         if not db_event:
             return "not_found"
 
-        if not self._is_deletable(db_event):
-            return "not_deletable"
+        # if not self._is_deletable(db_event):
+        #     return "not_deletable"
 
         release_id = int(event_id.replace("event_", ""))
         update_release_id = EventID(id=release_id, isOccupied=False)
@@ -187,17 +187,17 @@ class EventService:
             if hasattr(db_event, attr_name):
                 setattr(db_event, attr_name, value)
 
-    def _is_deletable(self, db_event: Event) -> bool:
-        if db_event.is_draft:
-            return True
-
-        now = datetime.now(timezone.utc)
-        registration_start = db_event.registration_start
-        if registration_start is None:
-            return False
-        if registration_start.tzinfo is None:
-            now = now.replace(tzinfo=None)
-        return registration_start > now
+    # def _is_deletable(self, db_event: Event) -> bool:
+    #    if db_event.is_draft:
+    #        return True
+    #
+    #    now = datetime.now(timezone.utc)
+    #    registration_start = db_event.registration_start
+    #    if registration_start is None:
+    #        return False
+    #    if registration_start.tzinfo is None:
+    #        now = now.replace(tzinfo=None)
+    #    return registration_start > now
 
     def _format_batch_error(self, error: Exception) -> str:
         if isinstance(error, (DuplicateEventNameError, IntegrityError)):
