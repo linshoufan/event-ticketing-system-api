@@ -192,6 +192,10 @@ class EventResponse(EventBase):
 class SingleEventResponse(BaseModel):
     data: EventResponse
 
+    model_config = ConfigDict(from_attributes=True)
+
 class PaginatedEventResponse(BaseModel):
     data: List[EventResponse]
     pagination: dict
+
+    model_config = ConfigDict(from_attributes=True)
