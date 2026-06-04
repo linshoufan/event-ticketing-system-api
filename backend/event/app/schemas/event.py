@@ -182,6 +182,7 @@ class EventResponse(EventBase):
         validation_alias=AliasChoices("updatedAt", "updated_at"),
         serialization_alias="updatedAt"
     )
+    category: Optional[str] = None
 
     model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
