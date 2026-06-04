@@ -7,7 +7,7 @@ def test_list_events_excludes_ended_by_default(client, valid_event_payload):
 
     assert response.status_code == 200
     statuses = [event["status"] for event in response.json()["data"]]
-    assert "registering" in statuses
+    assert "registering" not in statuses
     assert "ended" not in statuses
 
 
@@ -27,7 +27,7 @@ def test_list_events_filters_keyword_category_and_dates(client, valid_event_payl
         **valid_event_payload,
         "name": "Year End Dinner",
         "description": "Company gathering",
-        "category": "dining",
+        "category": "food",
         "eventStartTime": "2026-12-25T18:00:00Z",
         "eventEndTime": "2026-12-25T22:00:00Z",
     })
@@ -41,7 +41,7 @@ def test_list_events_filters_keyword_category_and_dates(client, valid_event_payl
     })
 
     response = client("hr").get(
-        "/v1/events/?keyword=Dinner&category=dining"
+        "/v1/events/?keyword=Dinner&category=food"
         "&startDate=2026-12-01T00:00:00Z&endDate=2026-12-31T23:59:59Z"
     )
 

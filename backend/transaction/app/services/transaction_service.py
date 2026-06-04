@@ -109,29 +109,19 @@ def _ensure_owner_or_staff(tx: Transaction, current_user: CurrentUser) -> None:
     )
 
 
-def _apply_autofill(
-    *,
-    request_guest_count: int | None,
-    request_diet_type: str | None,
-    request_self_driving: bool | None,
-    profile_diet_type: str | None,
-    profile_self_driving: bool | None,
-    event_has_capacity_limit: bool,
-) -> tuple[int, str | None, bool | None]:
-    """從 user profile 自動填入未提供的欄位，並套用親友規則。
-
-    親友規則（依 api-spec.txt）：
-    - 有票數限制的活動（ticketLimit 有值）→ 僅限本人，guestCount 固定為 0
-    - 無票數限制的活動（ticketLimit 為 null）→ 可填親友人數，guestCount >= 0
-    """
+def _apply_autofill(*, request_guest_count, request_diet_type, request_self_driving,
+                    profile_diet_type, profile_self_driving,
+                    profile_guest_count, event_has_capacity_limit):
     diet = request_diet_type if request_diet_type is not None else profile_diet_type
     driving = request_self_driving if request_self_driving is not None else profile_self_driving
-
     if event_has_capacity_limit:
-        guest = 0  # 限名額活動固定 0
+        guest = 0
+    elif request_guest_count is not None:
+        guest = request_guest_count
+    elif profile_guest_count is not None:
+        guest = profile_guest_count
     else:
-        guest = request_guest_count if request_guest_count is not None else 0
-
+        guest = 0
     return guest, diet, driving
 
 def _raise_if_ineligible(elig: EligibilityResult) -> None:
@@ -174,6 +164,7 @@ def create_registration(
     account_client: AccountClient,
     event_client: EventClient,
     ticket_client: TicketClient,
+    save_autofill: bool = False
 ) -> Transaction:
     """報名一場活動。回傳建立的 Transaction（已含 status 與可能的 ticket_id）。"""
     # === Step 1: eligibility check（在 lock 外做，較貴的部分先擋掉）===
@@ -188,15 +179,18 @@ def create_registration(
 
     profile = elig.profile
     event = elig.event
-    assert profile is not None and event is not None  # eligibility 通過必有
+    assert profile is not None and event is not None
 
-    # === Step 2: autofill + guest 規則 ===
+    if event.category:
+        profile = account_client.get_registration_profile(user_id, category=event.category)
+
     guest_count, diet_type, self_driving = _apply_autofill(
         request_guest_count=request_guest_count,
         request_diet_type=request_diet_type,
         request_self_driving=request_self_driving,
         profile_diet_type=profile.autofill_diet_type,
         profile_self_driving=profile.autofill_self_driving,
+        profile_guest_count=profile.autofill_guest_count,    # NEW
         event_has_capacity_limit=event.has_capacity_limit,
     )
 
@@ -244,6 +238,17 @@ def create_registration(
     if tx_status == "confirmed":
         _issue_and_attach_ticket(tx=tx, db=db, ticket_client=ticket_client)
 
+    if save_autofill:
+        try:
+            account_client.update_autofill(
+                user_id,
+                category=event.category,
+                diet_type=diet_type,
+                self_driving=self_driving,
+                guest_count=guest_count if not event.has_capacity_limit else None,
+            )
+        except Exception as exc:
+            logger.warning("saveAutofill failed user=%s event=%s: %s", user_id, event_id, exc)
     return tx
 
 def _issue_and_attach_ticket(

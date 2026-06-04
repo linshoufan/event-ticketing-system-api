@@ -119,23 +119,15 @@ def create_transaction(
         account_client=account_client,
         event_client=event_client,
         ticket_client=ticket_client,
+        save_autofill=body.saveAutofill,
     )
-
-    if body.saveAutofill:
-        try:
-            account_client.update_autofill(
-                current_user.user_id,
-                diet_type=body.dietType,
-                self_driving=body.selfDriving,
-            )
-        except Exception as exc:
-            logger.warning("saveAutofill failed for user=%s: %s", current_user.user_id, exc)
 
     return success({
         "transactionId": tx.transaction_id,
         "status": tx.status,
         "waitlistNumber": tx.waitlist_number,
         "ticketId": tx.ticket_id,
+        "guestCount": tx.guest_count, 
         "registeredAt": tx.registered_at.isoformat(),
     })
 

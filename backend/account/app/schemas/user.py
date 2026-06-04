@@ -20,7 +20,13 @@ class LoginResponse(BaseModel):
 class AutofillSchema(BaseModel):
     dietType: str | None = None
     selfDriving: bool | None = None
+    guestCount: int | None = None
 
+class AutofillUpdateRequest(BaseModel):
+    category: str | None = None
+    dietType: str | None = None
+    selfDriving: bool | None = None
+    guestCount: int | None = None
 
 # GET /me, GET /users/{userId}
 class UserResponse(BaseModel):

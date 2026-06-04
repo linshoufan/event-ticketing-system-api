@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.models.user import User, UserInterestTag
+from app.models.user import User, UserInterestTag, UserPreference
 from app.schemas.user import CreateUserRequest, UpdateUserRequest
 
 
@@ -89,6 +89,60 @@ def update_user_autofill(
     db.commit()
     db.refresh(user)
     return user
+
+def resolve_autofill(user: User, category: str | None, db: Session) -> dict:
+    diet = user.diet_type
+    driving = user.self_driving
+    guest = None
+    if category:
+        pref = (
+            db.query(UserPreference)
+            .filter(UserPreference.user_id == user.user_id,
+                    UserPreference.category == category)
+            .first()
+        )
+        if pref is not None:
+            if pref.diet_type is not None:
+                diet = pref.diet_type
+            if pref.self_driving is not None:
+                driving = pref.self_driving
+            guest = pref.guest_count            # 該類別存過的攜伴人數（可能為 None）
+    return {"dietType": diet, "selfDriving": driving, "guestCount": guest}
+
+
+def upsert_autofill(
+    user_id: str,
+    category: str | None,
+    diet_type: str | None,
+    self_driving: bool | None,
+    guest_count: int | None,
+    db: Session,
+) -> None:
+    user = get_user_by_id(user_id, db)
+    if category:
+        pref = (
+            db.query(UserPreference)
+            .filter(UserPreference.user_id == user_id,
+                    UserPreference.category == category)
+            .first()
+        )
+        if pref is None:
+            pref = UserPreference(user_id=user_id, category=category)
+            db.add(pref)
+        if diet_type is not None:
+            pref.diet_type = diet_type
+        if self_driving is not None:
+            pref.self_driving = self_driving
+        if guest_count is not None:
+            pref.guest_count = guest_count
+        pref.updated_at = datetime.now(timezone.utc)
+    else:
+        if diet_type is not None:
+            user.diet_type = diet_type
+        if self_driving is not None:
+            user.self_driving = self_driving
+        user.updated_at = datetime.now(timezone.utc)
+    db.commit()
 
 def update_user_role(user_id: str, role: str, current_user: User, db: Session) -> User:
     if current_user.user_id == user_id:

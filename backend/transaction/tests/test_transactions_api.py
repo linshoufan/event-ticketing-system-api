@@ -38,6 +38,27 @@ def test_confirmed_survives_ticket_issue_failure(db, fake_account, fake_event):
     assert tx.status == "confirmed"
     assert tx.ticket_id is None
 
+def test_register_uses_per_category_guest_count(client, fake_account, fake_event, fake_ticket, auth):
+    fake_event.set_event("event_009", ticket_limit=None, category="culture")
+    fake_account.set_profile("user_006", role="employee", guest_count=2) 
+    # 報名「不帶」guestCount → 應自動帶出該類別存的 2
+    resp = client.post("/v1/transactions",
+                       json={"eventId": "event_009"},
+                       headers=auth("user_006"))
+    assert resp.status_code == 201
+    assert resp.json()["data"]["guestCount"] == 2
+
+def test_save_autofill_writes_with_category(client, fake_account, fake_event, fake_ticket, auth):
+    fake_event.set_event("event_009", ticket_limit=None, category="culture")
+    fake_account.set_profile("user_006", role="employee")
+    client.post("/v1/transactions",
+                json={"eventId": "event_009", "guestCount": 1, "dietType": "veg",
+                      "selfDriving": False, "saveAutofill": True},
+                headers=auth("user_006"))
+    # fake 記錄到一筆帶 category 的 update_autofill
+    assert any(u["category"] == "culture" and u["guestCount"] == 1
+               for u in fake_account.autofill_updates)
+
 # POST /transactions
 def test_register_confirmed(client, fake_account, fake_event, fake_ticket, auth):
     fake_account.set_profile("user_006", diet="veg", driving=True)

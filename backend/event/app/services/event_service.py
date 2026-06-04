@@ -1,8 +1,7 @@
-import uuid
 from datetime import datetime, timezone
 from typing import List, Tuple, Optional
 from sqlalchemy.exc import IntegrityError
-from ..models.event import Event
+from ..models.event import Event, EventID
 from ..schemas.event import EventCreate, EventUpdate, BatchUpdateItem, normalize_status
 from ..repositories.event_repository import EventRepository
 
@@ -28,7 +27,36 @@ class EventService:
         self.repo = repository
 
     def create_event(self, event_in: EventCreate) -> Event:
-        event_id = uuid.uuid4().hex[:10]
+        event_num_limit = 10000
+        next_available_id, record_num = self.repo.get_latest_available_id()
+
+        next_id = 1
+        if not next_available_id:
+            if record_num == 0:
+                self.repo.create_event_id(None)
+            elif 0 < record_num and record_num <= event_num_limit:
+                greatest_used_id = self.repo.get_greatest_occupied_id()
+                if greatest_used_id:
+                    next_id = greatest_used_id.id + 1
+                    new_event_id = EventID(id=next_id, isOccupied=True)
+                    self.repo.create_event_id(new_event_id)
+            else:
+                raise Exception("EVENT_LIMIT_EXCEEDED")
+        else:
+            next_id = next_available_id.id
+            update_next_id = EventID(id=next_id, isOccupied=True)
+            self.repo.update_event_id(update_next_id)
+
+        event_id = f"event_{next_id}"
+        event_data = event_in.model_dump(by_alias=False)
+
+        # 建立模型實例並映射欄位
+        init_data = {"event_id": event_id}
+        for key, value in event_data.items():
+            attr_name = self.COLUMN_MAPPING.get(key, key)
+            init_data[attr_name] = value
+            
+        db_event = Event(**init_data)
         event_data = event_in.model_dump(by_alias=False)
         
         # 建立模型實例並映射欄位
@@ -94,8 +122,12 @@ class EventService:
 
         if not self._is_deletable(db_event):
             return "not_deletable"
-        
+
+        release_id = int(event_id.replace("event_", ""))
+        update_release_id = EventID(id=release_id, isOccupied=False)
+
         self.repo.delete(db_event)
+        self.repo.update_event_id(update_release_id)
         return "deleted"
 
     def batch_create(self, events: List[EventCreate]) -> dict:
@@ -113,6 +145,12 @@ class EventService:
                     "name": getattr(event_in, "name", None),
                     "error": self._format_batch_error(e),
                 })
+
+        # Update event status
+        now = datetime.now(timezone.utc)
+        updated = self.update_statuses(now)
+        if any(updated.values()):
+            print(f"[scheduler] Updated event statuses: {updated['registering']} registering, {updated['closed']} closed, {updated['ended']} ended.")
 
         return {"succeeded": succeeded, "failed": failed}
 
