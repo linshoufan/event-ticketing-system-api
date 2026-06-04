@@ -56,8 +56,8 @@ def test_batch_query_events(client, valid_event_payload):
         json={"eventIds": [event_id, "ghost_id"]},
     )
 
-    print(f"{response.json()["data"]["eventStartTime"]} {response.json()["data"]["eventEndTime"]} {response.json()["data"]["registrationStart"]} {response.json()["data"]["registrationEnd"]}")
-    print({response.json()["data"]["status"]})
+    print(response.json()["data"])
+    print(response.json()["data"]["status"])
     assert response.status_code == 200
     assert response.json()["data"]["found"][0]["eventId"] == event_id
     assert response.json()["data"]["found"][0]["status"] == "not_open"
