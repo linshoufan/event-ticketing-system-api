@@ -107,7 +107,7 @@ users:
     self_driving: false
 
 events:
-  - id: "event_001"
+  - id: "event_1"
     name: "夏日烤肉趴"
     location: "台北 101 頂樓"
     category: "sport"
@@ -121,7 +121,7 @@ events:
     time_offset: -1
     duration: 4
     registration_offset: -10
-  - id: "event_002"
+  - id: "event_2"
     name: "部門聚餐"
     location: "知名火鍋店"
     category: "food"
@@ -135,7 +135,7 @@ events:
     time_offset: -120
     duration: 3
     registration_offset: -15
-  - id: "event_003"
+  - id: "event_3"
     name: "週五電影之夜"
     location: "公司大會議室"
     category: "culture"
@@ -149,7 +149,7 @@ events:
     time_offset: 48
     duration: 3
     registration_offset: -5
-  - id: "event_004"
+  - id: "event_4"
     name: "員工家庭日"
     location: "新竹中央公園"
     category: "family"
@@ -164,7 +164,7 @@ events:
     duration: 8
     registration_offset: -5
     cancellation_offset: 48
-  - id: "event_005"
+  - id: "event_5"
     name: "Event event_005"
     location: "Test Venue"
     category: "culture"
@@ -179,7 +179,7 @@ events:
     duration: 4
     registration_offset: -1
     cancellation_offset: 72
-  - id: "event_006"
+  - id: "event_6"
     name: "Event event_006"
     location: "Race Venue"
     category: "sport"
@@ -194,7 +194,7 @@ events:
     duration: 4
     registration_offset: -1
     cancellation_offset: 72
-  - id: "event_007"
+  - id: "event_7"
     name: "Event event_007"
     location: "Mixed Flow Venue"
     category: "culture"
@@ -209,7 +209,7 @@ events:
     duration: 4
     registration_offset: -1
     cancellation_offset: 72
-  - id: "event_008"
+  - id: "event_8"
     name: "Family Day"
     location: "Company Campus"
     category: "family"
@@ -224,7 +224,7 @@ events:
     duration: 8
     registration_offset: -30
     cancellation_offset: 456
-  - id: "event_009"
+  - id: "event_9"
     name: "Open Lecture"
     location: "Auditorium"
     category: "culture"
@@ -238,7 +238,7 @@ events:
     time_offset: 432
     duration: 8
     registration_offset: -30
-  - id: "event_010"
+  - id: "event_10"
     name: "X"
     location: "Test Room"
     category: "test"
@@ -252,7 +252,7 @@ events:
     time_offset: 432
     duration: 8
     registration_offset: -30
-  - id: "event_011"
+  - id: "event_11"
     name: "2026跨年喝酒BBQ同樂會"
     description: "如題"
     location: "公司頂樓"

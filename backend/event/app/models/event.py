@@ -26,3 +26,9 @@ class Event(Base):
     is_draft = Column("is_draft", Boolean, default=True, nullable=False)
     created_at = Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column("updated_at", DateTime(timezone=True), onupdate=func.now(), nullable=True)
+
+class EventID(Base):
+    __tablename__ = "ids"
+
+    id = Column(Integer, primary_key=True, index=True)
+    isOccupied = Column("is_occupied", Boolean, nullable=False, default=False)

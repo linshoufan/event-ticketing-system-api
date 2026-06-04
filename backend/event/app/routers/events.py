@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -29,6 +29,12 @@ def create_event(
 ):
     try:
         db_event = service.create_event(event_in)
+        now = datetime.now(timezone.utc)
+        updated = service.update_statuses(now)
+
+        if any(updated.values()):
+            print(f"[scheduler] Updated event statuses: {updated['registering']} registering, {updated['closed']} closed, {updated['ended']} ended.")
+
     except DuplicateEventNameError:
         raise HTTPException(
             status_code=409,

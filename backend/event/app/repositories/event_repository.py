@@ -2,7 +2,7 @@ from typing import List, Tuple, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session, Query
 from sqlalchemy import or_
-from ..models.event import Event
+from ..models.event import Event, EventID
 
 class EventRepository:
     def __init__(self, db: Session):
@@ -117,3 +117,33 @@ class EventRepository:
         for e in events:
             e.status = to_status
         return len(events)
+
+    def get_latest_available_id(self) -> Tuple[Optional[EventID], int]:
+        query = self.db.query(EventID)
+        total = query.count()
+        query = query.filter(not EventID.isOccupied)
+        query = query.order_by(EventID.id.asc()).first()
+
+        return query, total
+
+    def get_greatest_occupied_id(self) -> EventID:
+        query = self.db.query(EventID)
+        query = query.order_by(EventID.id.desc()).first()
+
+        return query
+
+    def create_event_id(self, event_id: Optional[EventID]) -> None:
+        if event_id is None:
+            event_id = EventID(id=1, isOccupied=True)
+
+        self.db.add(event_id)
+        self.db.commit()
+        self.db.refresh(event_id)
+
+    def update_event_id(self, event_id: EventID) -> None:
+        if event_id is None:
+            raise Exception("Update event id failed: receiving null parameter")
+
+        merge_id = self.db.merge(event_id)
+        self.db.commit()
+        self.db.refresh(merge_id)
