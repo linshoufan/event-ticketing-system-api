@@ -135,7 +135,7 @@ Response 200
     "userId": "u_abc123",
     "username": "john.doe",
     "role": "employee",
-    "preferences": ["outdoor", "food"],
+    "preferences": ["sport", "food"],
     "registrationStatus": "active",
     "unlockAt": null,
     "autofill": {
@@ -210,7 +210,7 @@ Response 200
     "userId": "u_abc123",
     "username": "john.doe",
     "role": "employee",
-    "preferences": ["outdoor", "food"],
+    "preferences": ["sport", "food"],
     "registrationStatus": "active",
     "unlockAt": null,
     "autofill": {
@@ -228,7 +228,7 @@ Roles: self、welfare_member
 
 Request Body
 {
-  "preferences": ["music", "sports"],
+  "preferences": ["music", "culture"],
   "autofill": {
     "dietType": "veg",
     "selfDriving": false
@@ -299,7 +299,7 @@ Roles: all roles
 Query Params
 ?page=1&limit=20
 &keyword=烤肉
-&category=outdoor
+&category=sport
 &startDate=2025-06-01
 &endDate=2025-07-01
 &status=registering

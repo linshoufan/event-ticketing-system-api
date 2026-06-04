@@ -110,7 +110,7 @@ events:
   - id: "event_001"
     name: "夏日烤肉趴"
     location: "台北 101 頂樓"
-    category: "outdoor"
+    category: "sport"
     guest_allowed: false
     ticket_limit: 200
     remaining_tickets: 200
@@ -167,7 +167,7 @@ events:
   - id: "event_005"
     name: "Event event_005"
     location: "Test Venue"
-    category: "test"
+    category: "culture"
     guest_allowed: false
     ticket_limit: 5
     remaining_tickets: 5
@@ -182,7 +182,7 @@ events:
   - id: "event_006"
     name: "Event event_006"
     location: "Race Venue"
-    category: "test"
+    category: "sport"
     guest_allowed: false
     ticket_limit: 1
     remaining_tickets: 1
@@ -197,7 +197,7 @@ events:
   - id: "event_007"
     name: "Event event_007"
     location: "Mixed Flow Venue"
-    category: "test"
+    category: "culture"
     guest_allowed: false
     ticket_limit: 3
     remaining_tickets: 3
@@ -256,7 +256,7 @@ events:
     name: "2026跨年喝酒BBQ同樂會"
     description: "如題"
     location: "公司頂樓"
-    category: "娛樂"
+    category: "music"
     guest_allowed: true
     ticket_limit: null
     remaining_tickets: 200
