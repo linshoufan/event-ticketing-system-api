@@ -8,7 +8,7 @@ import sys
 sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.core.database import Base, DATABASE_URL
-from app.models.event import Event # noqa: F401
+from app.models.event import Event, EventID # noqa: F401
 
 config = context.config
 

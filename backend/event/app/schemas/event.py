@@ -182,6 +182,7 @@ class EventResponse(EventBase):
         validation_alias=AliasChoices("updatedAt", "updated_at"),
         serialization_alias="updatedAt"
     )
+    category: Optional[str] = None
 
     model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
@@ -192,6 +193,10 @@ class EventResponse(EventBase):
 class SingleEventResponse(BaseModel):
     data: EventResponse
 
+    model_config = ConfigDict(from_attributes=True)
+
 class PaginatedEventResponse(BaseModel):
     data: List[EventResponse]
     pagination: dict
+
+    model_config = ConfigDict(from_attributes=True)

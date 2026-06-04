@@ -121,7 +121,7 @@ class EventRepository:
     def get_latest_available_id(self) -> Tuple[Optional[EventID], int]:
         query = self.db.query(EventID)
         total = query.count()
-        query = query.filter(not EventID.isOccupied)
+        query = query.filter(EventID.isOccupied.is_(False))
         query = query.order_by(EventID.id.asc()).first()
 
         return query, total

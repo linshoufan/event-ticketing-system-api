@@ -57,15 +57,6 @@ class EventService:
             init_data[attr_name] = value
             
         db_event = Event(**init_data)
-        event_data = event_in.model_dump(by_alias=False)
-        
-        # 建立模型實例並映射欄位
-        init_data = {"event_id": event_id}
-        for key, value in event_data.items():
-            attr_name = self.COLUMN_MAPPING.get(key, key)
-            init_data[attr_name] = value
-            
-        db_event = Event(**init_data)
         try:
             return self.repo.create(db_event)
         except IntegrityError as e:
