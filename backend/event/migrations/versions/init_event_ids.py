@@ -2,7 +2,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "init_event_ids"
-down_revision = None
+down_revision = "event_category_check"
 branch_labels = None
 depends_on = None
 
