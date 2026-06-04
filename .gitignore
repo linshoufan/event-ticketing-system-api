@@ -165,6 +165,7 @@ venv.bak/
 
 # Local database dumps / generated helper scripts
 *.sql
+docs/*.sql
 scripts/generate_secrets.py
 
 # Spyder project settings
