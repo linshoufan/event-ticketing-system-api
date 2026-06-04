@@ -114,7 +114,7 @@ events:
     guest_allowed: false
     ticket_limit: 200
     remaining_tickets: 200
-    status: 1
+    status: 3
     lat: 25.0339
     lon: 121.5644
     radius: 500
@@ -156,7 +156,7 @@ events:
     guest_allowed: true
     ticket_limit: 300
     remaining_tickets: 300
-    status: 1
+    status: 0
     lat: 24.8066
     lon: 120.9687
     radius: 300
@@ -171,7 +171,7 @@ events:
     guest_allowed: false
     ticket_limit: 5
     remaining_tickets: 5
-    status: 1
+    status: 0
     lat: 25.0339
     lon: 121.5644
     radius: 500
@@ -186,7 +186,7 @@ events:
     guest_allowed: false
     ticket_limit: 1
     remaining_tickets: 1
-    status: 1
+    status: 0
     lat: 25.0339
     lon: 121.5644
     radius: 500
@@ -201,7 +201,7 @@ events:
     guest_allowed: false
     ticket_limit: 3
     remaining_tickets: 3
-    status: 1
+    status: 0
     lat: 25.0339
     lon: 121.5644
     radius: 500
@@ -260,7 +260,7 @@ events:
     guest_allowed: true
     ticket_limit: null
     remaining_tickets: 200
-    status: 1
+    status: 0
     is_draft: false
     lat: 25.0339
     lon: 121.5644
