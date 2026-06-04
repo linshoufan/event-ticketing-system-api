@@ -144,5 +144,6 @@ class EventRepository:
         if event_id is None:
             raise Exception("Update event id failed: receiving null parameter")
 
+        merge_id = self.db.merge(event_id)
         self.db.commit()
-        self.db.refresh(event_id)
+        self.db.refresh(merge_id)
