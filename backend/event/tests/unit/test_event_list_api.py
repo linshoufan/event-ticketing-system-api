@@ -8,7 +8,6 @@ def test_list_events_excludes_ended_by_default(client, valid_event_payload):
     assert response.status_code == 200
     statuses = [event["status"] for event in response.json()["data"]]
     print(response.json()["data"])
-    print(response.json()["data"]["status"])
     assert "registering" in statuses
     assert "ended" not in statuses
 
