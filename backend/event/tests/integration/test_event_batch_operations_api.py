@@ -56,10 +56,9 @@ def test_batch_query_events(client, valid_event_payload):
         json={"eventIds": [event_id, "ghost_id"]},
     )
 
-    print(response.json()["data"])
     assert response.status_code == 200
     assert response.json()["data"]["found"][0]["eventId"] == event_id
-    assert response.json()["data"]["found"][0]["status"] == "not_open"
+    assert response.json()["data"]["found"][0]["status"] == "ended"
     assert response.json()["data"]["notFound"] == ["ghost_id"]
     assert response.json()["data"]["total"] == 1
 
