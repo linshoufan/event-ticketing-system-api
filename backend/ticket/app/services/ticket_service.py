@@ -126,16 +126,25 @@ class TicketService:
                 "qrPayload": f"{ticket.ticket_id}:{ticket.event_id}:{ticket.user_id}:sig_mock"
             }
 
+    def checkin_by_welfare(self, ticket_id: str) -> dict:
+        ticket = self._get_ticket_or_404(ticket_id)
+        if ticket.status == "invalid":
+            raise HTTPException(status_code=400, detail={"code": "TICKET_INVALID", "message": "Ticket is invalid"})
+        if ticket.status == "used":
+            return self._checkin_response(ticket)
+        return self._mark_checked_in(ticket)
+
     def checkin(self, ticket_id: str, user_id: str, lat: float, lon: float) -> dict:
-        ticket = self.repo.get_by_id(ticket_id)
-        if not ticket or ticket.user_id != user_id:
+        ticket = self._get_ticket_or_404(ticket_id)
+        now = datetime.now(timezone.utc)
+
+        if ticket.user_id != user_id:
              raise HTTPException(status_code=404, detail={"code": "TICKET_NOT_FOUND", "message": "Ticket not found"})
         
         if ticket.status != "unused":
              raise HTTPException(status_code=400, detail={"code": "TICKET_INVALID", "message": "Ticket is used or invalid"})
         
         event = self.event_client.get_event(ticket.event_id)
-        now = datetime.now(timezone.utc)
         
         if not (event.event_start_time <= now <= event.event_end_time):
             raise HTTPException(status_code=400, detail={"code": "NOT_EVENT_TIME", "message": "Check-in only available during event time"})
@@ -144,10 +153,23 @@ class TicketService:
         if distance > float(event.checkin_radius_meters):
              raise HTTPException(status_code=400, detail={"code": "OUT_OF_RANGE", "message": "User is not within event location"})
         
+        return self._mark_checked_in(ticket, checked_in_at=now)
+
+    def _get_ticket_or_404(self, ticket_id: str) -> Ticket:
+        ticket = self.repo.get_by_id(ticket_id)
+        if not ticket:
+            raise HTTPException(status_code=404, detail={"code": "TICKET_NOT_FOUND", "message": "Ticket not found"})
+        return ticket
+
+    def _mark_checked_in(self, ticket: Ticket, checked_in_at: datetime | None = None) -> dict:
         ticket.status = "used"
-        ticket.checked_in_at = now
+        ticket.checked_in_at = checked_in_at or datetime.now(timezone.utc)
         self.repo.save()
-        return {"checkedIn": True, "checkedInAt": now.isoformat()}
+        return self._checkin_response(ticket)
+
+    def _checkin_response(self, ticket: Ticket) -> dict:
+        checked_in_at = ticket.checked_in_at or datetime.now(timezone.utc)
+        return {"checkedIn": True, "checkedInAt": checked_in_at.isoformat()}
 
     def _calculate_distance(self, lat1, lon1, lat2, lon2):
         R = 6371000
