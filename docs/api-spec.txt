@@ -459,6 +459,11 @@ Response 200
   "data": { "deleted": true }
 }
 
+Response 502
+{
+  "error": { "code": "TICKET_CLEANUP_FAILED", "message": "Failed to delete related tickets" }
+}
+
 Response 409
 {
   "error": { "code": "EVENT_NOT_DELETABLE", "message": "Event already published or registration started" }

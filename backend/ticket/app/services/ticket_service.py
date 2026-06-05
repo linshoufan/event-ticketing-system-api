@@ -44,6 +44,9 @@ class TicketService:
         self.repo.delete(ticket)
         return True
 
+    def delete_event_tickets(self, event_id: str) -> int:
+        return self.repo.delete_by_event_id(event_id)
+
     def get_user_tickets(self, user_id: str, status_filter: str = None) -> List[dict]:
         tickets = self.repo.get_user_tickets(user_id, status_filter)
         result = []

@@ -20,6 +20,7 @@ class Settings(BaseSettings):
 
     # Internal API
     internal_api_key: str = "dev-internal-key"
+    ticket_service_url: str = "http://localhost:8001"
 
     # CORS
     cors_origins: str = (

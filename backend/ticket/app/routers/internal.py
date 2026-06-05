@@ -35,6 +35,14 @@ def void_ticket(
     service.void_ticket(ticket_id)
     return success({"ticketId": ticket_id, "voided": True})
 
+@router.delete("/events/{event_id}")
+def delete_event_tickets(
+    event_id: str,
+    service: TicketService = Depends(get_ticket_service)
+):
+    deleted_count = service.delete_event_tickets(event_id)
+    return success({"eventId": event_id, "deletedCount": deleted_count})
+
 @router.get("/no-show")
 def get_no_show_tickets(
     eventId: str = Query(..., alias="eventId"),
