@@ -72,7 +72,7 @@ def list_my_transactions(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     status: str | None = Query(None, pattern="^(confirmed|waitlist|cancelled)$"),
-    current_user: CurrentUser = Depends(role_required("employee")),
+    current_user: CurrentUser = Depends(role_required("employee", "hr")),
     db: Session = Depends(get_db),
     event_client: EventClient = Depends(get_event_client),
 ):
@@ -90,7 +90,7 @@ def list_my_transactions(
 @router.get("/transactions/{transaction_id}", response_model=TransactionDetailResponse)
 def get_transaction(
     transaction_id: str = Path(...),
-    current_user: CurrentUser = Depends(role_required("employee", "welfare_member")),
+    current_user: CurrentUser = Depends(role_required("employee", "welfare_member", "hr")),
     db: Session = Depends(get_db),
     event_client: EventClient = Depends(get_event_client),
 ):
@@ -103,7 +103,7 @@ def get_transaction(
 @router.post("/transactions", response_model=RegistrationCreateResponse, status_code=201)
 def create_transaction(
     body: RegistrationCreateRequest,
-    current_user: CurrentUser = Depends(role_required("employee")),
+    current_user: CurrentUser = Depends(role_required("employee", "hr")),
     db: Session = Depends(get_db),
     account_client: AccountClient = Depends(get_account_client),
     event_client: EventClient = Depends(get_event_client),
@@ -136,7 +136,7 @@ def create_transaction(
 def update_transaction(
     body: RegistrationUpdateRequest,
     transaction_id: str = Path(...),
-    current_user: CurrentUser = Depends(role_required("employee")),
+    current_user: CurrentUser = Depends(role_required("employee", "hr")),
     db: Session = Depends(get_db),
     event_client: EventClient = Depends(get_event_client),
 ):
@@ -155,7 +155,7 @@ def update_transaction(
 @router.delete("/transactions/{transaction_id}", response_model=CancelResponse, response_model_exclude_none=True,)
 def cancel_transaction(
     transaction_id: str = Path(...),
-    current_user: CurrentUser = Depends(role_required("employee")),
+    current_user: CurrentUser = Depends(role_required("employee", "hr")),
     db: Session = Depends(get_db),
     event_client: EventClient = Depends(get_event_client),
     ticket_client: TicketClient = Depends(get_ticket_client),

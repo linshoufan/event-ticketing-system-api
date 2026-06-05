@@ -44,7 +44,7 @@ def get_ticket_detail(
 def checkin(
     ticketId: str,
     checkin_data: TicketCheckin,
-    current_user: CurrentUser = Depends(role_required("employee")),
+    current_user: CurrentUser = Depends(role_required("employee", "hr")),
     service: TicketService = Depends(get_ticket_service)
 ):
     """Perform check-in with geofencing."""
