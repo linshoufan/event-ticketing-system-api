@@ -88,6 +88,12 @@ def update_event(
     db_event = service.update_event(eventId, update_data)
     if not db_event:
         raise HTTPException(status_code=404, detail={"code": "EVENT_NOT_FOUND", "message": "Event not found"})
+
+    now = datetime.now(timezone.utc)
+    updated = service.update_statuses(now)
+    if any(updated.values()):
+        print(f"[scheduler] Updated event statuses: {updated['registering']} registering, {updated['closed']} closed, {updated['ended']} ended.")
+
     return success({
         "updated": True,
         "updatedAt": db_event.updated_at
