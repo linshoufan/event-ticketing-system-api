@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from ..models.event import Event, EventID
 from ..schemas.event import EventCreate, EventUpdate, BatchUpdateItem, normalize_status
 from ..repositories.event_repository import EventRepository
+from ..core.external import TicketClient, TicketServiceError
 
 class DuplicateEventNameError(Exception):
     pass
@@ -23,8 +24,9 @@ class EventService:
         "isDraft": "is_draft"
     }
 
-    def __init__(self, repository: EventRepository):
+    def __init__(self, repository: EventRepository, ticket_client: TicketClient | None = None):
         self.repo = repository
+        self.ticket_client = ticket_client
 
     def create_event(self, event_in: EventCreate) -> Event:
         event_num_limit = 10000
@@ -123,6 +125,12 @@ class EventService:
         # if not self._is_deletable(db_event):
         #     return "not_deletable"
 
+        if self.ticket_client:
+            try:
+                self.ticket_client.delete_event_tickets(event_id)
+            except TicketServiceError:
+                return "ticket_cleanup_failed"
+
         self.repo.delete(db_event)
 
         if event_id.startswith("event_"):
@@ -173,6 +181,8 @@ class EventService:
                 succeeded.append(event_id)
             elif result == "not_found":
                 failed.append({"eventId": event_id, "error": "EVENT_NOT_FOUND"})
+            elif result == "ticket_cleanup_failed":
+                failed.append({"eventId": event_id, "error": "TICKET_CLEANUP_FAILED"})
             else:
                 failed.append({"eventId": event_id, "error": "EVENT_NOT_DELETABLE"})
 

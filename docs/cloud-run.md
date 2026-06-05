@@ -108,6 +108,10 @@ After deployment, update cross-service URLs:
 Set those on the services that call each other:
 
 ```bash
+gcloud run services update event-service \
+  --region "$REGION" \
+  --update-env-vars "TICKET_SERVICE_URL=https://ticket-service-...run.app"
+
 gcloud run services update transaction-service \
   --region "$REGION" \
   --update-env-vars "ACCOUNT_SERVICE_URL=https://account-service-...run.app,EVENT_SERVICE_URL=https://event-service-...run.app,TICKET_SERVICE_URL=https://ticket-service-...run.app"
