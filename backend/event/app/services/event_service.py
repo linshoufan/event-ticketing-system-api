@@ -48,6 +48,7 @@ class EventService:
             self.repo.update_event_id(update_next_id)
 
         event_id = f"event_{next_id}"
+        event_in.remainingTickets = event_in.ticketLimit
         event_data = event_in.model_dump(by_alias=False)
 
         # 建立模型實例並映射欄位
@@ -83,7 +84,15 @@ class EventService:
         db_event = self.repo.get_by_id(event_id)
         if not db_event:
             return None
-            
+
+        if update_data.ticketLimit:
+            sold_ticket_num = db_event.ticket_limit - db_event.remaining_tickets
+            new_remain_tickets = update_data.ticketLimit - sold_ticket_num
+            if new_remain_tickets < 0:
+                raise Exception("Number of booked tickets cannot exceed new ticket limit!")
+
+            update_data.remainingTickets = new_remain_tickets
+
         update_dict = update_data.model_dump(exclude_unset=True, by_alias=False)
         self._apply_updates(db_event, update_dict)
             
