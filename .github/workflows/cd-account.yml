@@ -1,0 +1,55 @@
+name: CD - Account Service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/account/**"
+      - "k8s/01-account-service.yaml"
+      - ".github/workflows/cd-account.yml"
+
+env:
+  PROJECT_ID: ticketing-system-498218
+  REGION: asia-east1
+  REPOSITORY: cloud-run-source-deploy
+  IMAGE: event-ticketing-system-api/account-api
+  DEPLOYMENT: account-service
+  CONTAINER: account-api
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Build and Push Image
+        run: |
+          IMAGE_URI="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}"
+          docker build -t "${IMAGE_URI}:${{ github.sha }}" -t "${IMAGE_URI}:latest" .
+          docker push "${IMAGE_URI}:${{ github.sha }}"
+          docker push "${IMAGE_URI}:latest"
+
+      - name: Get GKE Credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: autopilot-cluster-1
+          location: asia-east1
+
+      - name: Deploy to GKE
+        run: |
+          IMAGE_URI="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE }}"
+          kubectl set image deployment/${{ env.DEPLOYMENT }} \
+            ${{ env.CONTAINER }}="${IMAGE_URI}:${{ github.sha }}"
+          kubectl rollout status deployment/${{ env.DEPLOYMENT }}
