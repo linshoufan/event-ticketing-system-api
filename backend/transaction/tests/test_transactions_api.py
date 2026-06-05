@@ -59,6 +59,14 @@ def test_save_autofill_writes_with_category(client, fake_account, fake_event, fa
     assert any(u["category"] == "culture" and u["guestCount"] == 1
                for u in fake_account.autofill_updates)
 
+def test_register_hr_allowed(client, fake_account, fake_event, fake_ticket, auth):
+    fake_event.set_event("event_009", ticket_limit=None, category="culture")
+    fake_account.set_profile("hr_001", role="hr")
+    resp = client.post("/v1/transactions",
+                       json={"eventId": "event_009"},
+                       headers=auth("hr_001", "hr"))
+    assert resp.status_code == 201
+
 # POST /transactions
 def test_register_confirmed(client, fake_account, fake_event, fake_ticket, auth):
     fake_account.set_profile("user_006", diet="veg", driving=True)
