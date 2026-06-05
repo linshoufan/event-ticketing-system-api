@@ -1,0 +1,115 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: account-service
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: account-service
+  template:
+    metadata:
+      labels:
+        app: account-service
+    spec:
+      serviceAccountName: cloud-sql-proxy-sa
+      containers:
+        - name: account-api
+          image: asia-east1-docker.pkg.dev/ticketing-system-498218/cloud-run-source-deploy/event-ticketing-system-api/account-api:336aa67
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          env:
+            - name: SERVICE
+              value: "account"
+            - name: ENV
+              value: "gke"
+            - name: ACCOUNT_DB_HOST
+              value: "127.0.0.1"
+            - name: ACCOUNT_DB_PORT
+              value: "5432"
+            - name: ACCOUNT_DB_USER
+              value: "postgres"
+            - name: ACCOUNT_DB_NAME
+              value: "account_db"
+            - name: ACCOUNT_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: account-db-password
+            - name: EMPLOYEE_AUTH_MODE
+              value: "database"
+            - name: EMPLOYEE_DB_HOST
+              value: "127.0.0.1"
+            - name: EMPLOYEE_DB_PORT
+              value: "5433"
+            - name: EMPLOYEE_DB_USER
+              value: "postgres"
+            - name: EMPLOYEE_DB_NAME
+              value: "employee_db"
+            - name: EMPLOYEE_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: employee-db-password
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: jwt-secret-key
+            - name: JWT_ALGORITHM
+              value: "HS256"
+            - name: JWT_EXPIRE_MINUTES
+              value: "480"
+            - name: INTERNAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: internal-api-key
+            - name: GOOGLE_REDIRECT_URI
+              value: "https://cnticketsystem.duckdns.org/v1/auth/callback"
+        - name: cloud-sql-proxy-account
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.11.0
+          args:
+            - "--structured-logs"
+            - "--address=0.0.0.0"
+            - "--port=5432"
+            - "ticketing-system-498218:asia-east1:account-db"
+          securityContext:
+            runAsNonRoot: true
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+        - name: cloud-sql-proxy-employee
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.11.0
+          args:
+            - "--structured-logs"
+            - "--address=0.0.0.0"
+            - "--port=5433"
+            - "ticketing-system-498218:asia-east1:account-db"
+          securityContext:
+            runAsNonRoot: true
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: account-service
+  namespace: default
+spec:
+  selector:
+    app: account-service
+  ports:
+    - port: 80
+      targetPort: 8080
