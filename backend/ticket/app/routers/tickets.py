@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, Query
+from typing import Any
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -43,10 +46,23 @@ def get_ticket_detail(
 @router.post("/{ticketId}/checkin")
 def checkin(
     ticketId: str,
-    checkin_data: TicketCheckin,
-    current_user: CurrentUser = Depends(role_required("employee")),
+    checkin_data: Any = Body(None),
+    current_user: CurrentUser = Depends(role_required("employee", "welfare_member", "hr")),
     service: TicketService = Depends(get_ticket_service)
 ):
     """Perform check-in with geofencing."""
-    result = service.checkin(ticketId, current_user.user_id, checkin_data.latitude, checkin_data.longitude)
+    if current_user.role == "welfare_member":
+        result = service.checkin_by_welfare(ticketId)
+    else:
+        try:
+            parsed_checkin = TicketCheckin.model_validate(checkin_data)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=exc.errors()) from exc
+
+        result = service.checkin(
+            ticketId,
+            current_user.user_id,
+            parsed_checkin.latitude,
+            parsed_checkin.longitude,
+        )
     return success(result)

@@ -1,6 +1,16 @@
 def test_update_event_success(client, valid_event_payload):
     c = client("welfare_member")
-    create_res = c.post("/v1/events/", json={**valid_event_payload, "name": "Update Test"})
+    create_res = c.post(
+        "/v1/events/",
+        json={
+            **valid_event_payload,
+            "name": "Update Test",
+            "eventStartTime": "2027-01-01T09:00:00Z",
+            "eventEndTime": "2027-01-01T18:00:00Z",
+            "registrationStart": "2026-12-01T09:00:00Z",
+            "registrationEnd": "2026-12-31T18:00:00Z",
+        },
+    )
     event_id = create_res.json()["data"]["eventId"]
 
     patch_res = c.patch(f"/v1/events/{event_id}", json={"ticketLimit": 500, "status": "closed"})

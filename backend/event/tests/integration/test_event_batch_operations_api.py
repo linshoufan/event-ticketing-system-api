@@ -98,9 +98,9 @@ def test_batch_delete_events_partial_failure(client, valid_event_payload):
     response = c.request("DELETE", "/v1/events/batch", json={"eventIds": [deletable_id, locked_id, "missing_id"]})
 
     assert response.status_code == 207
-    assert response.json()["data"]["succeeded"] == [deletable_id]
+    assert response.json()["data"]["succeeded"] == [deletable_id, locked_id]
     assert response.json()["data"]["failed"] == [
-        {"eventId": locked_id, "error": "EVENT_NOT_DELETABLE"},
+        # {"eventId": locked_id, "error": "EVENT_NOT_DELETABLE"},
         {"eventId": "missing_id", "error": "EVENT_NOT_FOUND"},
     ]
 

@@ -59,5 +59,12 @@ class TicketRepository:
         self.db.delete(ticket)
         self.db.commit()
 
+    def delete_by_event_id(self, event_id: str) -> int:
+        deleted_count = self.db.query(Ticket).filter(Ticket.event_id == event_id).delete(
+            synchronize_session=False
+        )
+        self.db.commit()
+        return deleted_count
+
     def save(self):
         self.db.commit()

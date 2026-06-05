@@ -11,6 +11,7 @@ from app.main import app
 from app.core.database import Base, get_db
 from app.core.config import settings
 from app.core.dependencies import get_current_user, CurrentUser
+from app.core.external import TicketServiceError, get_ticket_client
 from app.core.security import jwt
 
 # 測試資料庫名稱
@@ -63,7 +64,22 @@ def db_session(db_engine):
         session.commit()
 
 @pytest.fixture
-def client(db_session):
+def ticket_client():
+    class FakeTicketClient:
+        def __init__(self):
+            self.deleted_event_ids = []
+            self.fail = False
+
+        def delete_event_tickets(self, event_id: str) -> int:
+            if self.fail:
+                raise TicketServiceError("ticket cleanup failed")
+            self.deleted_event_ids.append(event_id)
+            return 0
+
+    return FakeTicketClient()
+
+@pytest.fixture
+def client(db_session, ticket_client):
     app.dependency_overrides.clear()
     
     def _client(role="hr"):
@@ -77,6 +93,7 @@ def client(db_session):
         
         app.dependency_overrides[get_db] = override_get_db
         app.dependency_overrides[get_current_user] = override_user_check
+        app.dependency_overrides[get_ticket_client] = lambda: ticket_client
         return TestClient(app)
     
     yield _client
@@ -87,6 +104,7 @@ def raw_client(db_session):
     def override_get_db():
         yield db_session
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_ticket_client] = lambda: None
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()

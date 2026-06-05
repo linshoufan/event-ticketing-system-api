@@ -33,7 +33,7 @@ _REASON_MAP = {
 @router.get("/events/{event_id}/eligibility", response_model=EligibilityResponse)
 def check_eligibility(
     event_id: str = Path(..., min_length=1, max_length=50),
-    current_user: CurrentUser = Depends(role_required("employee")),
+    current_user: CurrentUser = Depends(role_required("employee", "hr")),
     db: Session = Depends(get_db),
     account_client: AccountClient = Depends(get_account_client),
     event_client: EventClient = Depends(get_event_client),
