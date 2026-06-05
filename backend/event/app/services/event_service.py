@@ -114,11 +114,13 @@ class EventService:
         # if not self._is_deletable(db_event):
         #     return "not_deletable"
 
-        release_id = int(event_id.replace("event_", ""))
-        update_release_id = EventID(id=release_id, isOccupied=False)
-
         self.repo.delete(db_event)
-        self.repo.update_event_id(update_release_id)
+
+        if event_id.startswith("event_"):
+            id = int(event_id.replace("event_", ""))
+            release_id = EventID(id=id, isOccupied=False)
+            self.repo.update_event_id(release_id)
+
         return "deleted"
 
     def batch_create(self, events: List[EventCreate]) -> dict:
