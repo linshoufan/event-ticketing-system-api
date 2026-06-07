@@ -21,7 +21,7 @@ from app.core.external import (
     get_ticket_client,
 )
 from app.core.response import success
-from app.services import no_show_service
+from app.services import no_show_service, transaction_service
 
 router = APIRouter()
 
@@ -46,3 +46,12 @@ def punish_no_shows(
         "skipped": result.skipped,
         "errors": result.errors,
     })
+
+@router.delete("/internal/events/{event_id}/registrations", response_model=dict)
+def delete_event_registrations(
+    event_id: str = Path(..., min_length=1, max_length=50),
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_internal_key),
+):
+    deleted = transaction_service.delete_event_registrations(event_id=event_id, db=db)
+    return success({"eventId": event_id, "deletedCount": deleted})

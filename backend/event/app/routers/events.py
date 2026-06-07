@@ -6,6 +6,7 @@ from ..core.database import get_db
 from ..core.dependencies import role_required
 from ..core.external import TicketClient, get_ticket_client
 from ..core.response import success, paginated
+from ..core.external import TransactionClient, get_transaction_client
 from ..schemas.event import (
     EventCreate, EventUpdate, EventResponse, 
     PaginatedEventResponse, BatchUpdateSchema,
@@ -20,9 +21,10 @@ router = APIRouter(prefix="/v1/events", tags=["events"])
 def get_event_service(
     db: Session = Depends(get_db),
     ticket_client: TicketClient = Depends(get_ticket_client),
+    transaction_client: TransactionClient = Depends(get_transaction_client), 
 ) -> EventService:
     repo = EventRepository(db)
-    return EventService(repo, ticket_client)
+    return EventService(repo, ticket_client, transaction_client) 
 
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 @router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
