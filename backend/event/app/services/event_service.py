@@ -3,8 +3,7 @@ from typing import List, Tuple, Optional
 from sqlalchemy.exc import IntegrityError
 from ..models.event import Event, EventID
 from ..schemas.event import EventCreate, EventUpdate, BatchUpdateItem, normalize_status
-from ..repositories.event_repository import EventRepository
-from ..core.external import TicketClient, TicketServiceError, TransactionClient, TransactionServiceError
+from ..core.external import TicketServiceError, TransactionServiceError
 
 class DuplicateEventNameError(Exception):
     pass
