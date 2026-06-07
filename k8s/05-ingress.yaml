@@ -1,0 +1,46 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ticketing-ingress
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - cnticketsystem.xyz
+      secretName: duckdns-tls
+  rules:
+    - host: cnticketsystem.xyz
+      http:
+        paths:
+          - path: /account(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: account-service
+                port:
+                  number: 80
+          - path: /event(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: event-service
+                port:
+                  number: 80
+          - path: /ticket(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: ticket-service
+                port:
+                  number: 80
+          - path: /transaction(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: transaction-service
+                port:
+                  number: 80
