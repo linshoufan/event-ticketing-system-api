@@ -276,6 +276,16 @@ def _issue_and_attach_ticket(
     db.commit()
     db.refresh(tx)
 
+def delete_event_registrations(*, event_id: str, db: Session) -> int:
+    """event 被刪時連動清掉該活動的所有報名紀錄。"""
+    deleted = (
+        db.query(Transaction)
+        .filter(Transaction.event_id == event_id)
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return deleted
+
 # Cancel registration（取消，含補位）
 def cancel_registration(
     *,

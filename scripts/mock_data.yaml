@@ -241,7 +241,7 @@ events:
   - id: "event_10"
     name: "X"
     location: "Test Room"
-    category: "test"
+    category: "music"
     guest_allowed: false
     ticket_limit: null
     remaining_tickets: 0
