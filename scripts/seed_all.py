@@ -90,8 +90,8 @@ def seed_all(reset=False):
             for u in data['users']:
                 reg_status = u.get('registration_status', 'active')
                 conn.execute(text("""
-                    INSERT INTO users (user_id, username, email, role, registration_status, unlock_at, created_at, updated_at)
-                    INSERT INTO users (user_id, username, email, role, registration_status, unlock_at, diet_type, self_driving, created_at, updated_at)
+                    INSERT INTO users (user_id, username, email, role, registration_status,
+                                       unlock_at, diet_type, self_driving, created_at, updated_at)
                     VALUES (:uid, :uid, :email, :role, :status,
                             CASE WHEN :status = 'locked' THEN NOW() + INTERVAL '30 days' ELSE NULL END,
                             :diet, :driving, NOW(), NOW())
@@ -101,11 +101,15 @@ def seed_all(reset=False):
                         role = EXCLUDED.role,
                         registration_status = EXCLUDED.registration_status,
                         unlock_at = EXCLUDED.unlock_at,
-                        updated_at = NOW(),
                         diet_type = EXCLUDED.diet_type,
                         self_driving = EXCLUDED.self_driving,
                         updated_at = NOW()
-                """), {"uid": u['user_id'], "email": u['email'], "role": u['role'], "status": reg_status})
+                """), {
+                    "uid": u['user_id'], "email": u['email'], "role": u['role'],
+                    "status": reg_status,
+                    "diet": u.get('diet_type'),
+                    "driving": u.get('self_driving'),
+                })
             conn.commit()
         print("✅ Seeded Account Users")
     else:

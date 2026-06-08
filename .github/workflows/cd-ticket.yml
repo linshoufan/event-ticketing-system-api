@@ -9,10 +9,10 @@ on:
       - ".github/workflows/cd-ticket.yml"
 
 env:
-  PROJECT_ID: ticketing-system-498218
+  PROJECT_ID: ticketing-system-260607
   REGION: asia-east1
-  REPOSITORY: cloud-run-source-deploy
-  IMAGE: event-ticketing-system-api/ticket-api
+  REPOSITORY: app-repo
+  IMAGE: api
   DEPLOYMENT: ticket-service
   CONTAINER: ticket-api
 
@@ -26,7 +26,7 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          credentials_json: ${{ secrets.GCP_SA_KEY_2 }}
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
