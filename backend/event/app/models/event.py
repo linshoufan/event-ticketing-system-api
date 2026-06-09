@@ -16,7 +16,7 @@ class Event(Base):
     cancellation_deadline = Column("cancellation_deadline", DateTime(timezone=True), nullable=True)
     latitude = Column(Numeric(20, 16), nullable=True)
     longitude = Column(Numeric(20, 16), nullable=True)
-    checkin_radius_meters = Column("checkin_radius_meters", Numeric(20, 2), nullable=True)
+    checkin_radius_meters = Column("checkin_radius_meters", Numeric(12, 2), nullable=True)
     event_start_time = Column("event_start_time", DateTime(timezone=True), nullable=False)
     event_end_time = Column("event_end_time", DateTime(timezone=True), nullable=False)
     registration_start = Column("registration_start", DateTime(timezone=True), nullable=False)
