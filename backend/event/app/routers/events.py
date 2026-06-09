@@ -168,6 +168,11 @@ def delete_event(
             status_code=502,
             detail={"code": "TICKET_CLEANUP_FAILED", "message": "Failed to delete related tickets"},
         )
+    if delete_result == "transaction_cleanup_failed":
+        raise HTTPException(
+            status_code=502,
+            detail={"code": "TRANSACTION_CLEANUP_FAILED", "message": "Failed to delete related registrations"},
+        )
     if delete_result == "not_deletable":
         raise HTTPException(status_code=409, detail={"code": "EVENT_NOT_DELETABLE", "message": "Event is not deletable"})
     return success({"deleted": True})

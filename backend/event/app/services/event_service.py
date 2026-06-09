@@ -189,6 +189,8 @@ class EventService:
                 failed.append({"eventId": event_id, "error": "EVENT_NOT_FOUND"})
             elif result == "ticket_cleanup_failed":
                 failed.append({"eventId": event_id, "error": "TICKET_CLEANUP_FAILED"})
+            elif result == "transaction_cleanup_failed":
+                failed.append({"eventId": event_id, "error": "TRANSACTION_CLEANUP_FAILED"})
             else:
                 failed.append({"eventId": event_id, "error": "EVENT_NOT_DELETABLE"})
 
