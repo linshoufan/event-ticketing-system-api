@@ -16,7 +16,7 @@ spec:
       serviceAccountName: cloud-sql-proxy-sa
       containers:
         - name: event-api
-          image: asia-east1-docker.pkg.dev/ticketing-system-260607/app-repo/api:v1
+          image: asia-east1-docker.pkg.dev/ticketing-system-498218/app-repo/api:v1
           ports:
             - containerPort: 8080
           resources:
@@ -66,7 +66,7 @@ spec:
             - "--structured-logs"
             - "--address=0.0.0.0"
             - "--port=5432"
-            - "ticketing-system-260607:asia-east1:event-db"
+            - "ticketing-system-498218:asia-east1:event-db"
           securityContext:
             runAsNonRoot: true
           resources:

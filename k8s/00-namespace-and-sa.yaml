@@ -4,4 +4,4 @@ metadata:
   name: cloud-sql-proxy-sa
   namespace: default
   annotations:
-    iam.gke.io/gcp-service-account: cloud-sql-sa@ticketing-system-260607.iam.gserviceaccount.com
+    iam.gke.io/gcp-service-account: cloud-sql-sa@ticketing-system-498218.iam.gserviceaccount.com
