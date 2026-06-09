@@ -44,6 +44,10 @@ spec:
                 secretKeyRef:
                   name: db-secrets
                   key: event-db-password
+            - name: TICKET_SERVICE_URL
+              value: "http://ticket-service"
+            - name: TRANSACTION_SERVICE_URL
+              value: "http://transaction-service"
             - name: JWT_SECRET_KEY
               valueFrom:
                 secretKeyRef:
