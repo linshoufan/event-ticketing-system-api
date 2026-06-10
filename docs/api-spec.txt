@@ -463,6 +463,9 @@ Response 502
 {
   "error": { "code": "TICKET_CLEANUP_FAILED", "message": "Failed to delete related tickets" }
 }
+{
+  "error": { "code": "TRANSACTION_CLEANUP_FAILED", "message": "Failed to delete related registrations" }
+}
 
 Response 409
 {

@@ -100,7 +100,7 @@ Repeat for the other services with their matching image and DB variables:
 
 After deployment, update cross-service URLs:
 
-- `TRANSACTION_SERVICE_URL` is not currently needed by other services.
+- `TRANSACTION_SERVICE_URL=https://transaction-service-...run.app`
 - `ACCOUNT_SERVICE_URL=https://account-service-...run.app`
 - `EVENT_SERVICE_URL=https://event-service-...run.app`
 - `TICKET_SERVICE_URL=https://ticket-service-...run.app`
@@ -110,7 +110,7 @@ Set those on the services that call each other:
 ```bash
 gcloud run services update event-service \
   --region "$REGION" \
-  --update-env-vars "TICKET_SERVICE_URL=https://ticket-service-...run.app"
+  --update-env-vars "TICKET_SERVICE_URL=https://ticket-service-...run.app,TRANSACTION_SERVICE_URL=https://transaction-service-...run.app"
 
 gcloud run services update transaction-service \
   --region "$REGION" \

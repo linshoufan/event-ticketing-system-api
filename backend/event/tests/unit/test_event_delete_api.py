@@ -53,6 +53,23 @@ def test_delete_event_fails_when_ticket_cleanup_fails(client, valid_event_payloa
     assert client("employee").get(f"/v1/events/{event_id}").status_code == 200
 
 
+def test_delete_event_fails_when_transaction_cleanup_fails(
+    client,
+    valid_event_payload,
+    transaction_client,
+):
+    c = client("welfare_member")
+    create_res = c.post("/v1/events/", json={**valid_event_payload, "isDraft": True})
+    event_id = create_res.json()["data"]["eventId"]
+    transaction_client.fail = True
+
+    response = c.delete(f"/v1/events/{event_id}")
+
+    assert response.status_code == 502
+    assert response.json()["error"]["code"] == "TRANSACTION_CLEANUP_FAILED"
+    assert client("employee").get(f"/v1/events/{event_id}").status_code == 200
+
+
 def test_delete_event_after_registration_started_succeeds_when_delete_guard_disabled(client, valid_event_payload):
     c = client("welfare_member")
     create_res = c.post("/v1/events/", json={
