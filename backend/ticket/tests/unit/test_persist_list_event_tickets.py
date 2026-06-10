@@ -41,3 +41,15 @@ def test_summarize_event_tickets(ticket_repo, make_db_ticket):
     summary = ticket_repo.get_event_summary("event_005")
 
     assert summary == {"used": 2, "unused": 1, "invalid": 0}
+
+
+def test_delete_event_tickets(ticket_repo, make_db_ticket):
+    ticket_repo.create(make_db_ticket(ticket_id="ticket_001", event_id="event_005", transaction_id="tx_001"))
+    ticket_repo.create(make_db_ticket(ticket_id="ticket_002", event_id="event_005", transaction_id="tx_002", status="used"))
+    ticket_repo.create(make_db_ticket(ticket_id="ticket_003", event_id="event_006", transaction_id="tx_003"))
+
+    deleted_count = ticket_repo.delete_by_event_id("event_005")
+
+    assert deleted_count == 2
+    assert ticket_repo.count_event_tickets("event_005") == 0
+    assert ticket_repo.count_event_tickets("event_006") == 1

@@ -4,7 +4,9 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from ..core.database import get_db
 from ..core.dependencies import role_required
+from ..core.external import TicketClient, get_ticket_client
 from ..core.response import success, paginated
+from ..core.external import TransactionClient, get_transaction_client
 from ..schemas.event import (
     EventCreate, EventUpdate, EventResponse, 
     PaginatedEventResponse, BatchUpdateSchema,
@@ -16,9 +18,13 @@ from ..repositories.event_repository import EventRepository
 
 router = APIRouter(prefix="/v1/events", tags=["events"])
 
-def get_event_service(db: Session = Depends(get_db)) -> EventService:
+def get_event_service(
+    db: Session = Depends(get_db),
+    ticket_client: TicketClient = Depends(get_ticket_client),
+    transaction_client: TransactionClient = Depends(get_transaction_client), 
+) -> EventService:
     repo = EventRepository(db)
-    return EventService(repo)
+    return EventService(repo, ticket_client, transaction_client) 
 
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 @router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
@@ -88,6 +94,12 @@ def update_event(
     db_event = service.update_event(eventId, update_data)
     if not db_event:
         raise HTTPException(status_code=404, detail={"code": "EVENT_NOT_FOUND", "message": "Event not found"})
+
+    now = datetime.now(timezone.utc)
+    updated = service.update_statuses(now)
+    if any(updated.values()):
+        print(f"[scheduler] Updated event statuses: {updated['registering']} registering, {updated['closed']} closed, {updated['ended']} ended.")
+
     return success({
         "updated": True,
         "updatedAt": db_event.updated_at
@@ -151,6 +163,16 @@ def delete_event(
     delete_result = service.delete_event(eventId)
     if delete_result == "not_found":
         raise HTTPException(status_code=404, detail={"code": "EVENT_NOT_FOUND", "message": "Event not found"})
+    if delete_result == "ticket_cleanup_failed":
+        raise HTTPException(
+            status_code=502,
+            detail={"code": "TICKET_CLEANUP_FAILED", "message": "Failed to delete related tickets"},
+        )
+    if delete_result == "transaction_cleanup_failed":
+        raise HTTPException(
+            status_code=502,
+            detail={"code": "TRANSACTION_CLEANUP_FAILED", "message": "Failed to delete related registrations"},
+        )
     if delete_result == "not_deletable":
         raise HTTPException(status_code=409, detail={"code": "EVENT_NOT_DELETABLE", "message": "Event is not deletable"})
     return success({"deleted": True})

@@ -3,7 +3,7 @@ from typing import List, Tuple, Optional
 from sqlalchemy.exc import IntegrityError
 from ..models.event import Event, EventID
 from ..schemas.event import EventCreate, EventUpdate, BatchUpdateItem, normalize_status
-from ..repositories.event_repository import EventRepository
+from ..core.external import TicketServiceError, TransactionServiceError
 
 class DuplicateEventNameError(Exception):
     pass
@@ -23,8 +23,10 @@ class EventService:
         "isDraft": "is_draft"
     }
 
-    def __init__(self, repository: EventRepository):
+    def __init__(self, repository, ticket_client=None, transaction_client=None):
         self.repo = repository
+        self.ticket_client = ticket_client
+        self.transaction_client = transaction_client
 
     def create_event(self, event_in: EventCreate) -> Event:
         event_num_limit = 10000
@@ -48,17 +50,9 @@ class EventService:
             self.repo.update_event_id(update_next_id)
 
         event_id = f"event_{next_id}"
+        event_in.remainingTickets = event_in.ticketLimit
         event_data = event_in.model_dump(by_alias=False)
 
-        # 建立模型實例並映射欄位
-        init_data = {"event_id": event_id}
-        for key, value in event_data.items():
-            attr_name = self.COLUMN_MAPPING.get(key, key)
-            init_data[attr_name] = value
-            
-        db_event = Event(**init_data)
-        event_data = event_in.model_dump(by_alias=False)
-        
         # 建立模型實例並映射欄位
         init_data = {"event_id": event_id}
         for key, value in event_data.items():
@@ -92,10 +86,20 @@ class EventService:
         db_event = self.repo.get_by_id(event_id)
         if not db_event:
             return None
-            
+
+        if update_data.ticketLimit:
+            if db_event.ticket_limit is not None:
+                sold_ticket_num = db_event.ticket_limit - db_event.remaining_tickets
+                new_remain_tickets = update_data.ticketLimit - sold_ticket_num
+                if new_remain_tickets < 0:
+                    raise Exception("Number of booked tickets cannot exceed new ticket limit!")
+                update_data.remainingTickets = new_remain_tickets
+            else:
+                update_data.remainingTickets = update_data.ticketLimit
+
         update_dict = update_data.model_dump(exclude_unset=True, by_alias=False)
         self._apply_updates(db_event, update_dict)
-            
+
         return self.repo.update(db_event)
 
     def batch_update(self, updates: List[BatchUpdateItem]) -> dict:
@@ -120,14 +124,28 @@ class EventService:
         if not db_event:
             return "not_found"
 
-        if not self._is_deletable(db_event):
-            return "not_deletable"
+        # if not self._is_deletable(db_event):
+        #     return "not_deletable"
 
-        release_id = int(event_id.replace("event_", ""))
-        update_release_id = EventID(id=release_id, isOccupied=False)
+        if self.ticket_client:
+            try:
+                self.ticket_client.delete_event_tickets(event_id)
+            except TicketServiceError:
+                return "ticket_cleanup_failed"
+        
+        if self.transaction_client:
+            try:
+                self.transaction_client.delete_event_registrations(event_id)
+            except TransactionServiceError:
+                return "transaction_cleanup_failed"
 
         self.repo.delete(db_event)
-        self.repo.update_event_id(update_release_id)
+
+        if event_id.startswith("event_"):
+            id = int(event_id.replace("event_", ""))
+            release_id = EventID(id=id, isOccupied=False)
+            self.repo.update_event_id(release_id)
+
         return "deleted"
 
     def batch_create(self, events: List[EventCreate]) -> dict:
@@ -171,6 +189,10 @@ class EventService:
                 succeeded.append(event_id)
             elif result == "not_found":
                 failed.append({"eventId": event_id, "error": "EVENT_NOT_FOUND"})
+            elif result == "ticket_cleanup_failed":
+                failed.append({"eventId": event_id, "error": "TICKET_CLEANUP_FAILED"})
+            elif result == "transaction_cleanup_failed":
+                failed.append({"eventId": event_id, "error": "TRANSACTION_CLEANUP_FAILED"})
             else:
                 failed.append({"eventId": event_id, "error": "EVENT_NOT_DELETABLE"})
 
@@ -196,17 +218,17 @@ class EventService:
             if hasattr(db_event, attr_name):
                 setattr(db_event, attr_name, value)
 
-    def _is_deletable(self, db_event: Event) -> bool:
-        if db_event.is_draft:
-            return True
-
-        now = datetime.now(timezone.utc)
-        registration_start = db_event.registration_start
-        if registration_start is None:
-            return False
-        if registration_start.tzinfo is None:
-            now = now.replace(tzinfo=None)
-        return registration_start > now
+    # def _is_deletable(self, db_event: Event) -> bool:
+    #    if db_event.is_draft:
+    #        return True
+    #
+    #    now = datetime.now(timezone.utc)
+    #    registration_start = db_event.registration_start
+    #    if registration_start is None:
+    #        return False
+    #    if registration_start.tzinfo is None:
+    #        now = now.replace(tzinfo=None)
+    #    return registration_start > now
 
     def _format_batch_error(self, error: Exception) -> str:
         if isinstance(error, (DuplicateEventNameError, IntegrityError)):

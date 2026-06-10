@@ -1,0 +1,40 @@
+# GKE Autopilot 修正：cert-manager 預設在 kube-system 選主，但 Autopilot 鎖死 kube-system，
+# 所以用 --leader-election-namespace=cert-manager 改到 cert-manager namespace；
+# 這份補上該 namespace 的 lease 權限（預設只綁在 kube-system）。
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cert-manager-leaderelection
+  namespace: cert-manager
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cert-manager-cainjector-leaderelection
+  namespace: cert-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cert-manager-leaderelection
+subjects:
+  - kind: ServiceAccount
+    name: cert-manager-cainjector
+    namespace: cert-manager
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cert-manager-controller-leaderelection
+  namespace: cert-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cert-manager-leaderelection
+subjects:
+  - kind: ServiceAccount
+    name: cert-manager
+    namespace: cert-manager

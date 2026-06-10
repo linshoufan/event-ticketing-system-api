@@ -88,15 +88,28 @@ def seed_all(reset=False):
             if reset:
                 reset_tables(conn, "users")
             for u in data['users']:
+                reg_status = u.get('registration_status', 'active')
                 conn.execute(text("""
-                    INSERT INTO users (user_id, username, email, role, registration_status, created_at, updated_at)
-                    VALUES (:uid, :uid, :email, :role, 'active', NOW(), NOW())
+                    INSERT INTO users (user_id, username, email, role, registration_status,
+                                       unlock_at, diet_type, self_driving, created_at, updated_at)
+                    VALUES (:uid, :uid, :email, :role, :status,
+                            CASE WHEN :status = 'locked' THEN NOW() + INTERVAL '30 days' ELSE NULL END,
+                            :diet, :driving, NOW(), NOW())
                     ON CONFLICT (user_id) DO UPDATE SET
                         username = EXCLUDED.username,
                         email = EXCLUDED.email,
                         role = EXCLUDED.role,
+                        registration_status = EXCLUDED.registration_status,
+                        unlock_at = EXCLUDED.unlock_at,
+                        diet_type = EXCLUDED.diet_type,
+                        self_driving = EXCLUDED.self_driving,
                         updated_at = NOW()
-                """), {"uid": u['user_id'], "email": u['email'], "role": u['role']})
+                """), {
+                    "uid": u['user_id'], "email": u['email'], "role": u['role'],
+                    "status": reg_status,
+                    "diet": u.get('diet_type'),
+                    "driving": u.get('self_driving'),
+                })
             conn.commit()
         print("✅ Seeded Account Users")
     else:
@@ -163,13 +176,13 @@ def seed_all(reset=False):
                 reset_tables(conn, "transactions")
             for tx in data['transactions']:
                 conn.execute(text("""
-                    INSERT INTO transactions (transaction_id, user_id, event_id, status, ticket_id, guest_count, diet_type, self_driving, registered_at, updated_at)
-                    VALUES (:id, :uid, :eid, :status, :tid, 0, 'non-veg', TRUE, NOW(), NOW())
+                    INSERT INTO transactions (transaction_id, user_id, event_id, status, ticket_id, guest_count, diet_type, self_driving, waitlist_number, registered_at, updated_at)
+                    VALUES (:id, :uid, :eid, :status, :tid, 0, 'non-veg', TRUE, :wl, NOW(), NOW())
                     ON CONFLICT (transaction_id) DO UPDATE SET
-                        status = EXCLUDED.status,
-                        ticket_id = EXCLUDED.ticket_id,
-                        updated_at = NOW()
-                """), {"id": tx['id'], "uid": tx['user_id'], "eid": tx['event_id'], "status": tx['status'], "tid": tx['ticket_id']})
+                        status = EXCLUDED.status, ticket_id = EXCLUDED.ticket_id,
+                        waitlist_number = EXCLUDED.waitlist_number, updated_at = NOW()
+
+                """), {"id": tx['id'], "uid": tx['user_id'], "eid": tx['event_id'], "status": tx['status'], "tid": tx['ticket_id'], "wl": tx.get('waitlist_number') or (1 if tx['status'] == 'waitlist' else None)})
             conn.commit()
         print("✅ Seeded Transactions")
 

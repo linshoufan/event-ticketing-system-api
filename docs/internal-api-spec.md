@@ -316,6 +316,41 @@ waitlist 候補升為 confirmed 時也會呼叫。
 
 ---
 
+### DELETE `/v1/internal/tickets/events/{eventId}`
+
+刪除某活動底下所有票券。Event Service 在刪除活動前呼叫，避免活動已不存在但使用者票券列表仍出現 `Unknown Event`。
+
+**Path Parameters**
+
+| 參數 | 型別 | 說明 |
+|------|------|------|
+| eventId | string | 活動 ID |
+
+**Response 200**
+
+```json
+{
+  "data": {
+    "eventId": "evt-2026-summer-party",
+    "deletedCount": 12
+  }
+}
+```
+
+**Behavior**
+
+- 刪除該 `eventId` 底下所有 ticket records，包含 `unused` / `used` / `invalid`
+- 若該活動沒有任何 ticket，仍回 `200` 且 `deletedCount=0`
+- Event Service 會先呼叫此 API；若呼叫失敗，Event Service 不會刪除 event，避免 orphan tickets
+
+**Error Responses**
+
+| Status | code | 說明 |
+|--------|------|------|
+| 401 | `INVALID_INTERNAL_KEY` | key 值錯誤 |
+
+---
+
 ### GET `/v1/internal/tickets/no-show`
 
 撈出某活動結束後、所有「狀態仍為 unused」的 ticket 清單，供 Transaction Service 跑
@@ -356,5 +391,6 @@ No-Show punishment 排程使用。
 
 - **報名成功 (confirmed)**：Transaction Service 取得 ticketId 後寫回自己的 `transactions.ticket_id`
 - **取消報名 (was confirmed)**：Transaction Service 在更新 `status='cancelled'` 後呼叫 DELETE
+- **刪除活動**：Event Service 刪除活動前呼叫 `DELETE /v1/internal/tickets/events/{eventId}` 清除該活動所有票券
 - **Waitlist 補位**：候補升為 confirmed 時，先呼叫 POST 拿到新 ticketId，再 update transaction
 - **No-Show 偵測**：每日排程或活動結束後手動觸發，呼叫此 endpoint 撈名單，再對應到 user_ids 餵給 Account Service 的 `POST /v1/internal/users/{user_id}/punish`

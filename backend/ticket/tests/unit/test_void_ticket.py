@@ -30,3 +30,12 @@ def test_void_used_ticket_is_rejected(ticket_service, repo, make_ticket, shared_
     assert exc_info.value.status_code == 409
     assert exc_info.value.detail["code"] == "ALREADY_USED"
     repo.delete.assert_not_called()
+
+
+def test_delete_event_tickets(ticket_service, repo, shared_event):
+    repo.delete_by_event_id.return_value = 3
+
+    result = ticket_service.delete_event_tickets(shared_event["id"])
+
+    assert result == 3
+    repo.delete_by_event_id.assert_called_once_with(shared_event["id"])

@@ -82,8 +82,8 @@ def check_eligibility(
             will_be_waitlist=False,
         )
 
-    if profile.role != "employee":
-        # 福委會、HR 不參與報名
+    if profile.role not in ("employee", "hr"):
+        # 福委會不參與報名
         return EligibilityResult(
             eligible=False,
             reason_code=REASON_FORBIDDEN_ROLE,

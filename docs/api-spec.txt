@@ -459,6 +459,14 @@ Response 200
   "data": { "deleted": true }
 }
 
+Response 502
+{
+  "error": { "code": "TICKET_CLEANUP_FAILED", "message": "Failed to delete related tickets" }
+}
+{
+  "error": { "code": "TRANSACTION_CLEANUP_FAILED", "message": "Failed to delete related registrations" }
+}
+
 Response 409
 {
   "error": { "code": "EVENT_NOT_DELETABLE", "message": "Event already published or registration started" }
@@ -471,7 +479,7 @@ Transaction Service（報名管理）
 
 【 GET /events/{eventId}/eligibility 】
 檢查當前使用者報名資格
-Roles: employee
+Roles: employee、hr
 
 Response 200（符合資格）
 {
@@ -503,7 +511,7 @@ ALREADY_REGISTERED  已報名
 
 【 GET /transactions 】
 查詢自己的報名紀錄
-Roles: employee
+Roles: employee、hr
 
 Query Params
 ?page=1&limit=10&status=confirmed
@@ -533,7 +541,7 @@ Response 200
 
 【 POST /transactions 】
 提交報名
-Roles: employee
+Roles: employee、hr
 
 規則：ticketLimit 有設定（限名額）→ 只限員工本人，guestCount 固定為 0
       ticketLimit 為 null（不限名額）→ 可填家屬人數，guestCount >= 0
@@ -588,7 +596,7 @@ Response 409（其他）
 
 【 PATCH /transactions/{transactionId} 】
 修改報名細節（不影響報名順序與資格）
-Roles: employee
+Roles: employee、hr
 可修改欄位：dietType、selfDriving、guestCount（僅限不限名額的活動）
 
 Request Body
@@ -612,7 +620,7 @@ Response 409
 
 【 DELETE /transactions/{transactionId} 】
 取消報名
-Roles: employee
+Roles: employee、hr
 
 Response 200
 {
@@ -664,15 +672,20 @@ Ticket Service（票券管理）
 
 【 GET /tickets 】
 取得自己的票券列表
-Roles: employee
+Roles: employee、welfare_member、hr
 
 Query Params
 ?status=unused
 status 可選值：used | unused | invalid
 
-invalid   非活動期間（報名後尚未到活動時段，或活動已結束）
-used      活動期間且票券已兌換（報到完成）
-unused    活動期間且票券尚未兌換（可報到）
+status filter 依 DB 票券狀態查詢：
+unused    尚未報到 / 尚未核銷
+used      已報到 / 已核銷
+invalid   已作廢票券
+
+Response 中的 status 可能是顯示用狀態：
+- 若 DB status = unused，但目前不在活動時間內，response status 會顯示為 invalid，checkinAvailable=false。
+- 這個顯示用 invalid 不會寫回 DB，DB 仍是 unused。
 
 
 Response 200
@@ -694,7 +707,7 @@ Response 200
 
 【 GET /tickets/{ticketId} 】
 取得單一票券詳情（含報到所需資訊）
-Roles: employee、welfare_member
+Roles: employee、welfare_member、hr
 
 Response 200
 {
@@ -718,10 +731,17 @@ Response 200
 ------------------------------
 
 【 POST /tickets/{ticketId}/checkin 】
-報到（後端驗證地理位置）
-Roles: employee
+報到 / 核銷
+Roles: employee、welfare_member、hr
+
+- employee、hr：後端驗證本人、活動時間與地理位置
+- welfare_member：福委核銷，略過本人、活動時間與地理位置檢查
+- DB status = unused：成功後改為 used。
+- DB status = used：employee、hr 回 TICKET_INVALID；welfare_member 重複核銷仍回 200。
+- DB status = invalid：所有角色皆回 TICKET_INVALID。
 
 Request Body
+employee、hr 必填；welfare_member 可不帶，若有帶也會被忽略。
 {
   "latitude": 25.0479,
   "longitude": 121.5320
@@ -729,22 +749,36 @@ Request Body
 
 Response 200
 {
-  "data": { "checkedIn": true, "checkedInAt": "2025-07-15T18:05:00Z" }
+  "data": {
+    "checkedIn": true,
+    "checkedInAt": "2025-07-15T18:05:00Z"
+  }
 }
+
+福委重複核銷仍回 200，回傳原本報到時間：
+{
+  "data": {
+    "checkedIn": true,
+    "checkedInAt": "2025-07-15T18:05:00Z"
+  }
+}
+invalid 票券仍回 TICKET_INVALID。
 
 Response 400
 { "error": { "code": "OUT_OF_RANGE", "message": "User is not within event location" } }
 { "error": { "code": "TICKET_INVALID", "message": "Ticket is used or invalid" } }
+{ "error": { "code": "TICKET_INVALID", "message": "Ticket is invalid" } }
 { "error": { "code": "NOT_EVENT_TIME", "message": "Check-in only available during event time" } }
 
 ------------------------------
 
 【 GET /events/{eventId}/tickets 】
 查看某活動所有票券狀態（核銷頁面用）
-Roles: welfare_member
+Roles: welfare_member、hr
 
 Query Params
 ?status=unused&page=1&limit=50
+status 可選值：used | unused | invalid，依 DB 票券狀態查詢。
 
 Response 200
 {
