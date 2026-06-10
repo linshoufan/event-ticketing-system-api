@@ -7,6 +7,9 @@ from app.repositories.ticket_repository import TicketRepository
 from app.core.external import EventClient, AccountClient
 from fastapi import HTTPException, status
 
+TICKET_NOT_FOUND_MESSAGE = "Ticket not found"
+
+
 class TicketService:
     def __init__(self, repository: TicketRepository, event_client: EventClient, account_client: AccountClient):
         self.repo = repository
@@ -35,14 +38,13 @@ class TicketService:
         new_ticket = Ticket(user_id=user_id, event_id=event_id, transaction_id=transaction_id, status="unused")
         return self.repo.create(new_ticket)
 
-    def void_ticket(self, ticket_id: str) -> bool:
+    def void_ticket(self, ticket_id: str) -> None:
         ticket = self.repo.get_by_id(ticket_id)
         if not ticket:
-            return True
+            return
         if ticket.status == "used":
             raise HTTPException(status_code=409, detail={"code": "ALREADY_USED", "message": "Ticket used"})
         self.repo.delete(ticket)
-        return True
 
     def delete_event_tickets(self, event_id: str) -> int:
         return self.repo.delete_by_event_id(event_id)
@@ -88,7 +90,10 @@ class TicketService:
     def get_ticket_detail(self, ticket_id: str, current_user_id: str = None, is_internal: bool = False) -> dict:
         ticket = self.repo.get_by_id(ticket_id)
         if not ticket:
-            raise HTTPException(status_code=404, detail={"code": "TICKET_NOT_FOUND", "message": "Ticket not found"})
+            raise HTTPException(
+                status_code=404,
+                detail={"code": "TICKET_NOT_FOUND", "message": TICKET_NOT_FOUND_MESSAGE},
+            )
         
         if not is_internal and current_user_id and ticket.user_id != current_user_id:
              raise HTTPException(status_code=403, detail={"code": "FORBIDDEN", "message": "Access denied"})
@@ -142,7 +147,10 @@ class TicketService:
         now = datetime.now(timezone.utc)
 
         if ticket.user_id != user_id:
-             raise HTTPException(status_code=404, detail={"code": "TICKET_NOT_FOUND", "message": "Ticket not found"})
+             raise HTTPException(
+                 status_code=404,
+                 detail={"code": "TICKET_NOT_FOUND", "message": TICKET_NOT_FOUND_MESSAGE},
+             )
         
         if ticket.status != "unused":
              raise HTTPException(status_code=400, detail={"code": "TICKET_INVALID", "message": "Ticket is used or invalid"})
@@ -161,7 +169,10 @@ class TicketService:
     def _get_ticket_or_404(self, ticket_id: str) -> Ticket:
         ticket = self.repo.get_by_id(ticket_id)
         if not ticket:
-            raise HTTPException(status_code=404, detail={"code": "TICKET_NOT_FOUND", "message": "Ticket not found"})
+            raise HTTPException(
+                status_code=404,
+                detail={"code": "TICKET_NOT_FOUND", "message": TICKET_NOT_FOUND_MESSAGE},
+            )
         return ticket
 
     def _mark_checked_in(self, ticket: Ticket, checked_in_at: datetime | None = None) -> dict:

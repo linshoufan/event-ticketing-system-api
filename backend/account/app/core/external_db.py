@@ -6,11 +6,6 @@ import yaml
 
 from app.core.config import settings
 
-# 外部員工資料的結構
-# { "employee_id": str, "password": str, "name": str, "email": str }
-
-# Mock 資料，開發階段使用
-# 正式環境換成真正連外部 DB 的邏輯
 def _load_mock_employees() -> dict:
     yaml_path = Path(__file__).resolve().parents[4] / "scripts" / "mock_data.yaml"
     if not yaml_path.exists():
