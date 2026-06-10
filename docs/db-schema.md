@@ -1,134 +1,450 @@
-# Account Service — 資料庫 Schema 文件
+# Database Schema
 
-## 總覽
+This document describes the current database layout for the event ticketing system.
 
-Account Service 共有三張表：
+The backend is split by service database. Cross-service references are stored as IDs, but they are not enforced by database-level foreign keys because each service owns its own database.
 
-| 表名 | 說明 |
+## Database Overview
+
+| Database | Owner | Tables |
+|---|---|---|
+| `employee_db` | External employee auth data | `employees` |
+| `account_db` | Account Service | `users`, `user_interest_tags`, `user_preferences` |
+| `event_db` | Event Service | `events`, `ids` |
+| `transaction_db` | Transaction Service | `transactions` |
+| `ticket_db` | Ticket Service | `tickets` |
+
+## Cross-Database ER Model
+
+Dashed/implicit relationships below are logical references only. They are not database-level foreign keys.
+
+```mermaid
+erDiagram
+    EMPLOYEE_EMPLOYEES {
+        string employee_id PK "varchar(36)"
+        string password "varchar(255)"
+        string name "varchar(100)"
+        string email UK "varchar(255)"
+        datetime created_at
+        datetime updated_at
+    }
+
+    ACCOUNT_USERS {
+        string user_id PK "varchar(36)"
+        string username UK "varchar(100)"
+        string email UK "varchar(255)"
+        string role "employee|welfare_member|hr"
+        string registration_status "active|locked"
+        datetime unlock_at
+        string diet_type "veg|non-veg"
+        boolean self_driving
+        datetime created_at
+        datetime updated_at
+    }
+
+    ACCOUNT_USER_INTEREST_TAGS {
+        int id PK
+        string user_id FK "users.user_id"
+        string tag "sport|food|travel|culture|family|contest|music"
+    }
+
+    ACCOUNT_USER_PREFERENCES {
+        int id PK
+        string user_id FK "users.user_id"
+        string category "sport|food|travel|culture|family|contest|music"
+        string diet_type "veg|non-veg"
+        boolean self_driving
+        int guest_count
+        datetime updated_at
+    }
+
+    EVENT_EVENTS {
+        string event_id PK "varchar(50)"
+        string name UK "varchar(255)"
+        text description
+        string location "varchar(255)"
+        string category "sport|food|travel|culture|family|contest|music"
+        boolean guest_allowed
+        int ticket_limit
+        int remaining_tickets
+        datetime cancellation_deadline
+        decimal latitude "numeric(13,10)"
+        decimal longitude "numeric(13,10)"
+        decimal checkin_radius_meters "numeric(12,2)"
+        datetime event_start_time
+        datetime event_end_time
+        datetime registration_start
+        datetime registration_end
+        json faqs
+        int status "0..4"
+        boolean is_draft
+        datetime created_at
+        datetime updated_at
+    }
+
+    EVENT_IDS {
+        int id PK
+        boolean is_occupied
+    }
+
+    TRANSACTION_TRANSACTIONS {
+        string transaction_id PK "varchar(36)"
+        string user_id "logical users.user_id"
+        string event_id "logical events.event_id"
+        string status "confirmed|waitlist|cancelled"
+        int waitlist_number
+        int guest_count
+        string diet_type "veg|non-veg|none"
+        boolean self_driving
+        string ticket_id "logical tickets.ticket_id"
+        datetime registered_at
+        datetime cancelled_at
+        datetime updated_at
+    }
+
+    TICKET_TICKETS {
+        string ticket_id PK "varchar(50)"
+        string user_id "logical users.user_id"
+        string event_id "logical events.event_id"
+        string transaction_id UK "logical transactions.transaction_id"
+        string status "unused|used|invalid"
+        datetime issued_at
+        datetime checked_in_at
+    }
+
+    ACCOUNT_USERS ||--o{ ACCOUNT_USER_INTEREST_TAGS : owns
+    ACCOUNT_USERS ||--o{ ACCOUNT_USER_PREFERENCES : owns
+
+    EMPLOYEE_EMPLOYEES ||--o| ACCOUNT_USERS : "employee_id maps to user_id"
+    ACCOUNT_USERS ||--o{ TRANSACTION_TRANSACTIONS : "user_id"
+    EVENT_EVENTS ||--o{ TRANSACTION_TRANSACTIONS : "event_id"
+    TRANSACTION_TRANSACTIONS ||--o| TICKET_TICKETS : "ticket_id"
+    ACCOUNT_USERS ||--o{ TICKET_TICKETS : "user_id"
+    EVENT_EVENTS ||--o{ TICKET_TICKETS : "event_id"
+```
+
+## `employee_db`
+
+External employee credential database used by Account Service when `EMPLOYEE_AUTH_MODE=database`.
+
+### `employees`
+
+```mermaid
+erDiagram
+    EMPLOYEES {
+        string employee_id PK "varchar(36)"
+        string password "varchar(255), not null"
+        string name "varchar(100), not null"
+        string email UK "varchar(255), not null"
+        datetime created_at "default now()"
+        datetime updated_at "default now()"
+    }
+```
+
+| Column | Type | Nullable | Default | Constraints / Notes |
+|---|---:|---:|---|---|
+| `employee_id` | `VARCHAR(36)` | No | - | Primary key |
+| `password` | `VARCHAR(255)` | No | - | Used by database auth mode |
+| `name` | `VARCHAR(100)` | No | - | Employee display name |
+| `email` | `VARCHAR(255)` | No | - | Unique |
+| `created_at` | `TIMESTAMPTZ` | No | `NOW()` | Created timestamp |
+| `updated_at` | `TIMESTAMPTZ` | No | `NOW()` | Updated timestamp |
+
+## `account_db`
+
+Account Service stores application users, roles, registration lock state, interest tags, and autofill preferences.
+
+### Account ER Model
+
+```mermaid
+erDiagram
+    USERS {
+        string user_id PK
+        string username UK
+        string email UK
+        string role
+        string registration_status
+        datetime unlock_at
+        string diet_type
+        boolean self_driving
+        datetime created_at
+        datetime updated_at
+    }
+
+    USER_INTEREST_TAGS {
+        int id PK
+        string user_id FK
+        string tag
+    }
+
+    USER_PREFERENCES {
+        int id PK
+        string user_id FK
+        string category
+        string diet_type
+        boolean self_driving
+        int guest_count
+        datetime updated_at
+    }
+
+    USERS ||--o{ USER_INTEREST_TAGS : owns
+    USERS ||--o{ USER_PREFERENCES : owns
+```
+
+### `users`
+
+| Column | Type | Nullable | Default | Constraints / Notes |
+|---|---:|---:|---|---|
+| `user_id` | `VARCHAR(36)` | No | - | Primary key. Usually maps to `employee_db.employees.employee_id`. |
+| `username` | `VARCHAR(100)` | No | - | Unique |
+| `email` | `VARCHAR(255)` | No | - | Unique |
+| `role` | `VARCHAR(20)` | No | `employee` | Check: `employee`, `welfare_member`, `hr` |
+| `registration_status` | `VARCHAR(10)` | No | `active` | Check: `active`, `locked` |
+| `unlock_at` | `TIMESTAMPTZ` | Yes | `NULL` | Lock expiry timestamp |
+| `diet_type` | `VARCHAR(10)` | Yes | `non-veg` | Check: `veg`, `non-veg` |
+| `self_driving` | `BOOLEAN` | Yes | `NULL` | Default autofill value |
+| `created_at` | `TIMESTAMPTZ` | No | `NOW()` | Created timestamp |
+| `updated_at` | `TIMESTAMPTZ` | No | `NOW()` | Updated timestamp |
+
+### `user_interest_tags`
+
+| Column | Type | Nullable | Default | Constraints / Notes |
+|---|---:|---:|---|---|
+| `id` | `INTEGER` | No | autoincrement | Primary key |
+| `user_id` | `VARCHAR(36)` | No | - | FK to `users.user_id`, `ON DELETE CASCADE` |
+| `tag` | `VARCHAR(50)` | No | - | Check: `sport`, `food`, `travel`, `culture`, `family`, `contest`, `music` |
+
+Constraints:
+
+| Name | Definition |
 |---|---|
-| `users` | 使用者基本資料 |
-| `user_interest_tags` | 使用者興趣標籤（一對多） |
-| `user_preferences` | 使用者依活動類別的報名偏好（一對多） |
+| `UNIQUE(user_id, tag)` | A user cannot have the same interest tag twice. |
 
----
+### `user_preferences`
 
-## `users`
+| Column | Type | Nullable | Default | Constraints / Notes |
+|---|---:|---:|---|---|
+| `id` | `INTEGER` | No | autoincrement | Primary key |
+| `user_id` | `VARCHAR(36)` | No | - | FK to `users.user_id`, `ON DELETE CASCADE` |
+| `category` | `VARCHAR(50)` | No | - | Check: `sport`, `food`, `travel`, `culture`, `family`, `contest`, `music` |
+| `diet_type` | `VARCHAR(10)` | Yes | `NULL` | Check: `veg`, `non-veg` |
+| `self_driving` | `BOOLEAN` | Yes | `NULL` | Category-specific autofill |
+| `guest_count` | `INTEGER` | Yes | `NULL` | Category-specific autofill |
+| `updated_at` | `TIMESTAMPTZ` | No | `NOW()` | Updated timestamp |
 
-使用者基本資料，每個使用者一筆。
+Constraints:
 
-| 欄位 | 型別 | Nullable | 預設值 | 可選值 | 說明 |
-|---|---|---|---|---|---|
-| user_id | VARCHAR(36) | NO | - | UUID | 主鍵 |
-| username | VARCHAR(100) | NO | - | - | 顯示名稱，從第三方登入取得，唯一 |
-| email | VARCHAR(255) | NO | - | - | 登入用，從第三方登入取得，唯一 |
-| role | VARCHAR(20) | NO | `employee` | `employee` / `welfare_member` / `hr` | 使用者角色 |
-| registration_status | VARCHAR(10) | NO | `active` | `active` / `locked` | 報名資格狀態 |
-| unlock_at | TIMESTAMPTZ | YES | `null` | - | 鎖定解除時間，`locked` 時才有值 |
-| diet_type | VARCHAR(10) | YES | `non-veg` | `veg` / `non-veg` | 全域飲食偏好預設值 |
-| self_driving | BOOLEAN | YES | `null` | `true` / `false` | 全域自駕偏好預設值 |
-| created_at | TIMESTAMPTZ | NO | NOW() | - | 建立時間 |
-| updated_at | TIMESTAMPTZ | NO | NOW() | - | 更新時間 |
-
-**範例資料：**
-```json
-{
-  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "username": "andy.hsu",
-  "email": "andy@company.com",
-  "role": "employee",
-  "registration_status": "active",
-  "unlock_at": null,
-  "diet_type": "non-veg",
-  "self_driving": true,
-  "created_at": "2026-05-20T10:00:00Z",
-  "updated_at": "2026-05-20T10:00:00Z"
-}
-```
-
----
-
-## `user_interest_tags`
-
-使用者的興趣標籤，一個使用者可以有多個標籤。
-
-| 欄位 | 型別 | Nullable | 預設值 | 可選值 | 說明 |
-|---|---|---|---|---|---|
-| id | SERIAL | NO | 自動遞增 | - | 主鍵 |
-| user_id | VARCHAR(36) | NO | - | 對應 users.user_id | 外鍵，user 刪除時一起刪 |
-| tag | VARCHAR(50) | NO | - | 見下方 | 興趣標籤 |
-
-**tag 可選值：**
-
-| 值 | 說明 |
+| Name | Definition |
 |---|---|
-| `sport` | 運動 |
-| `food` | 美食 |
-| `travel` | 旅遊 |
-| `culture` | 文藝 / 展覽 |
-| `family` | 親子 / 家庭 |
-| `contest` | 競賽 |
-| `music` | 音樂 |
+| `UNIQUE(user_id, category)` | A user has at most one preference row per category. |
 
-> tag 可選值與活動的 `category` 一致，供活動推薦使用。
+## `event_db`
 
-**限制：** 同一個 user 不能有重複的 tag（`UNIQUE(user_id, tag)`）
+Event Service owns activity/event data and reusable event numeric IDs.
 
-**範例資料：**
-```json
-[
-  { "id": 1, "user_id": "a1b2c3d4-...", "tag": "sport" },
-  { "id": 2, "user_id": "a1b2c3d4-...", "tag": "food" }
-]
+### Event ER Model
+
+```mermaid
+erDiagram
+    EVENTS {
+        string event_id PK
+        string name UK
+        text description
+        string location
+        string category
+        boolean guest_allowed
+        int ticket_limit
+        int remaining_tickets
+        datetime cancellation_deadline
+        decimal latitude
+        decimal longitude
+        decimal checkin_radius_meters
+        datetime event_start_time
+        datetime event_end_time
+        datetime registration_start
+        datetime registration_end
+        json faqs
+        int status
+        boolean is_draft
+        datetime created_at
+        datetime updated_at
+    }
+
+    IDS {
+        int id PK
+        boolean is_occupied
+    }
 ```
 
----
+`ids` is not a child table of `events`. It tracks reusable numeric event IDs. For example, `events.event_id = 'event_12'` corresponds to `ids.id = 12` by convention.
 
-## `user_preferences`
+### `events`
 
-使用者依活動類別設定的報名偏好，用於報名時自動填入。
+| Column | Type | Nullable | Default | Constraints / Notes |
+|---|---:|---:|---|---|
+| `event_id` | `VARCHAR(50)` | No | - | Primary key, indexed |
+| `name` | `VARCHAR(255)` | No | - | Unique (`uq_events_name`) |
+| `description` | `TEXT` | No | - | Event description |
+| `location` | `VARCHAR(255)` | No | - | Event location |
+| `category` | `VARCHAR(50)` | Yes | `NULL` | Check: `sport`, `food`, `travel`, `culture`, `family`, `contest`, `music` |
+| `guest_allowed` | `BOOLEAN` | No | `false` | Whether guests are allowed |
+| `ticket_limit` | `INTEGER` | Yes | `NULL` | Capacity limit. `NULL` means no explicit limit. |
+| `remaining_tickets` | `INTEGER` | No | `0` | Remaining capacity |
+| `cancellation_deadline` | `TIMESTAMPTZ` | Yes | `NULL` | Last cancellation time |
+| `latitude` | `NUMERIC(13,10)` | Yes | `NULL` | Check-in latitude |
+| `longitude` | `NUMERIC(13,10)` | Yes | `NULL` | Check-in longitude |
+| `checkin_radius_meters` | `NUMERIC(12,2)` | Yes | `NULL` | Check-in radius |
+| `event_start_time` | `TIMESTAMPTZ` | No | - | Event start |
+| `event_end_time` | `TIMESTAMPTZ` | No | - | Event end |
+| `registration_start` | `TIMESTAMPTZ` | No | - | Registration start |
+| `registration_end` | `TIMESTAMPTZ` | No | - | Registration end |
+| `faqs` | `JSON` | Yes | `[]` | FAQ array |
+| `status` | `INTEGER` | No | `0` | `0=not_open`, `1=registering`, `2=waitlist`, `3=closed`, `4=ended` |
+| `is_draft` | `BOOLEAN` | No | `true` | Draft flag |
+| `created_at` | `TIMESTAMPTZ` | No | `NOW()` | Created timestamp |
+| `updated_at` | `TIMESTAMPTZ` | Yes | `NULL` | Updated on update |
 
-| 欄位 | 型別 | Nullable | 預設值 | 可選值 | 說明 |
-|---|---|---|---|---|---|
-| id | SERIAL | NO | 自動遞增 | - | 主鍵 |
-| user_id | VARCHAR(36) | NO | - | 對應 users.user_id | 外鍵，user 刪除時一起刪 |
-| category | VARCHAR(50) | NO | - | 與 tag 相同 | 活動類別 |
-| diet_type | VARCHAR(10) | YES | `null` | `veg` / `non-veg` | 此類別的飲食偏好 |
-| self_driving | BOOLEAN | YES | `null` | `true` / `false` | 此類別的自駕偏好 |
-| guest_count | INTEGER | YES | `null` | 0 以上整數 | 此類別的攜伴人數 |
-| updated_at | TIMESTAMPTZ | NO | NOW() | - | 更新時間 |
+Indexes:
 
-**限制：** 同一個 user 同一個 category 只能有一筆（`UNIQUE(user_id, category)`）
+| Name | Columns |
+|---|---|
+| `ix_events_event_id` | `event_id` |
+| `ix_events_category` | `category` |
 
-**範例資料：**
-```json
-[
-  {
-    "id": 1,
-    "user_id": "a1b2c3d4-...",
-    "category": "sport",
-    "diet_type": "non-veg",
-    "self_driving": true,
-    "guest_count": 0,
-    "updated_at": "2026-05-20T10:00:00Z"
-  }
-]
+### `ids`
+
+| Column | Type | Nullable | Default | Constraints / Notes |
+|---|---:|---:|---|---|
+| `id` | `INTEGER` | No | - | Primary key, indexed |
+| `is_occupied` | `BOOLEAN` | No | `false` | Whether this numeric ID is currently occupied |
+
+## `transaction_db`
+
+Transaction Service owns registration records. Cancellation keeps the row and changes `status` to `cancelled`.
+
+### Transaction ER Model
+
+```mermaid
+erDiagram
+    TRANSACTIONS {
+        string transaction_id PK
+        string user_id
+        string event_id
+        string status
+        int waitlist_number
+        int guest_count
+        string diet_type
+        boolean self_driving
+        string ticket_id
+        datetime registered_at
+        datetime cancelled_at
+        datetime updated_at
+    }
 ```
 
----
+### `transactions`
 
-## 關聯圖
+| Column | Type | Nullable | Default | Constraints / Notes |
+|---|---:|---:|---|---|
+| `transaction_id` | `VARCHAR(36)` | No | - | Primary key |
+| `user_id` | `VARCHAR(36)` | No | - | Logical ref: `account_db.users.user_id` |
+| `event_id` | `VARCHAR(50)` | No | - | Logical ref: `event_db.events.event_id` |
+| `status` | `VARCHAR(20)` | No | `confirmed` | Check: `confirmed`, `waitlist`, `cancelled` |
+| `waitlist_number` | `INTEGER` | Yes | `NULL` | Queue number when waitlisted |
+| `guest_count` | `INTEGER` | No | `0` | Check: `guest_count >= 0` |
+| `diet_type` | `VARCHAR(10)` | Yes | `NULL` | Check: `veg`, `non-veg`, `none` |
+| `self_driving` | `BOOLEAN` | Yes | `NULL` | Registration form value |
+| `ticket_id` | `VARCHAR(36)` | Yes | `NULL` | Logical ref: `ticket_db.tickets.ticket_id`; only confirmed registrations normally have tickets |
+| `registered_at` | `TIMESTAMPTZ` | No | `NOW()` | Registration timestamp |
+| `cancelled_at` | `TIMESTAMPTZ` | Yes | `NULL` | Cancellation timestamp |
+| `updated_at` | `TIMESTAMPTZ` | No | `NOW()` | Updated timestamp |
 
+Indexes and constraints:
+
+| Name | Definition |
+|---|---|
+| `ix_transactions_event_status` | Index on `(event_id, status)` |
+| `ix_transactions_user_id` | Index on `user_id` |
+| `uq_active_registration` | Partial unique index on `(user_id, event_id)` where `status IN ('confirmed','waitlist')` |
+
+## `ticket_db`
+
+Ticket Service owns issued tickets and check-in state.
+
+### Ticket ER Model
+
+```mermaid
+erDiagram
+    TICKETS {
+        string ticket_id PK
+        string user_id
+        string event_id
+        string transaction_id UK
+        string status
+        datetime issued_at
+        datetime checked_in_at
+    }
 ```
-users (1)
-  ├── user_interest_tags (N)
-  └── user_preferences (N)
-```
 
----
+### `tickets`
 
-## Autofill 邏輯
+| Column | Type | Nullable | Default | Constraints / Notes |
+|---|---:|---:|---|---|
+| `ticket_id` | `VARCHAR(50)` | No | generated `tk_` ID | Primary key |
+| `user_id` | `VARCHAR(36)` | No | - | Logical ref: `account_db.users.user_id`; indexed |
+| `event_id` | `VARCHAR(50)` | No | - | Logical ref: `event_db.events.event_id`; indexed |
+| `transaction_id` | `VARCHAR(50)` | No | - | Logical ref: `transaction_db.transactions.transaction_id`; unique |
+| `status` | `VARCHAR(20)` | No | `unused` | Intended values: `unused`, `used`, `invalid` |
+| `issued_at` | `TIMESTAMPTZ` | Yes | current UTC time | Ticket issue timestamp |
+| `checked_in_at` | `TIMESTAMPTZ` | Yes | `NULL` | Set when ticket is checked in |
 
-使用者報名活動時，系統依序查詢填入預設值：
+Indexes and constraints:
 
-1. 查 `user_preferences`，有沒有對應 `category` 的設定 → 有就用
-2. 沒有對應 `category` → fallback 到 `users` 的 `diet_type` / `self_driving`
+| Name | Definition |
+|---|---|
+| `ix_tickets_user_id` | Index on `user_id` |
+| `ix_tickets_event_id` | Index on `event_id` |
+| `UNIQUE(transaction_id)` | One ticket per transaction |
+
+## Status Notes
+
+### Event Status
+
+| Value | API Value | Meaning |
+|---:|---|---|
+| `0` | `not_open` | Registration has not opened |
+| `1` | `registering` | Registration is open |
+| `2` | `waitlist` | Waitlist mode |
+| `3` | `closed` | Registration closed |
+| `4` | `ended` | Event has ended |
+
+### Transaction Status
+
+| Value | Meaning |
+|---|---|
+| `confirmed` | Registration has a confirmed seat |
+| `waitlist` | Registration is on waitlist |
+| `cancelled` | User cancelled registration |
+
+### Ticket Status
+
+| Value | Meaning |
+|---|---|
+| `unused` | Issued and not checked in |
+| `used` | Checked in |
+| `invalid` | Intended invalid status. Current API also derives invalid display state dynamically when an unused ticket is outside event time. |
+
+## Autofill Notes
+
+When a user registers for an event, autofill values are resolved in this order:
+
+1. `account_db.user_preferences` for the event `category`.
+2. Fallback to `account_db.users.diet_type` / `account_db.users.self_driving`.
+
+## Cleanup Notes
+
+When Event Service deletes an event, it calls internal APIs to clean up related resources:
+
+1. Ticket Service deletes `ticket_db.tickets` rows matching `event_id`.
+2. Transaction Service deletes `transaction_db.transactions` rows matching `event_id`.
+3. Event Service deletes the `event_db.events` row and releases the numeric ID in `event_db.ids`.
