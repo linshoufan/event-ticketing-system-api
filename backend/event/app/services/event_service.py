@@ -88,16 +88,18 @@ class EventService:
             return None
 
         if update_data.ticketLimit:
-            sold_ticket_num = db_event.ticket_limit - db_event.remaining_tickets
-            new_remain_tickets = update_data.ticketLimit - sold_ticket_num
-            if new_remain_tickets < 0:
-                raise Exception("Number of booked tickets cannot exceed new ticket limit!")
-
-            update_data.remainingTickets = new_remain_tickets
+            if db_event.ticket_limit is not None:
+                sold_ticket_num = db_event.ticket_limit - db_event.remaining_tickets
+                new_remain_tickets = update_data.ticketLimit - sold_ticket_num
+                if new_remain_tickets < 0:
+                    raise Exception("Number of booked tickets cannot exceed new ticket limit!")
+                update_data.remainingTickets = new_remain_tickets
+            else:
+                update_data.remainingTickets = update_data.ticketLimit
 
         update_dict = update_data.model_dump(exclude_unset=True, by_alias=False)
         self._apply_updates(db_event, update_dict)
-            
+
         return self.repo.update(db_event)
 
     def batch_update(self, updates: List[BatchUpdateItem]) -> dict:
