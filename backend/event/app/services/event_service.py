@@ -8,6 +8,15 @@ from ..core.external import TicketServiceError, TransactionServiceError
 class DuplicateEventNameError(Exception):
     pass
 
+
+class EventLimitExceededError(RuntimeError):
+    pass
+
+
+class TicketLimitExceededError(ValueError):
+    pass
+
+
 class EventService:
     # 欄位映射：Pydantic (camelCase) -> SQLAlchemy Attribute (snake_case)
     COLUMN_MAPPING = {
@@ -43,7 +52,7 @@ class EventService:
                     new_event_id = EventID(id=next_id, isOccupied=True)
                     self.repo.create_event_id(new_event_id)
             else:
-                raise Exception("EVENT_LIMIT_EXCEEDED")
+                raise EventLimitExceededError("EVENT_LIMIT_EXCEEDED")
         else:
             next_id = next_available_id.id
             update_next_id = EventID(id=next_id, isOccupied=True)
@@ -92,7 +101,7 @@ class EventService:
                 sold_ticket_num = db_event.ticket_limit - db_event.remaining_tickets
                 new_remain_tickets = update_data.ticketLimit - sold_ticket_num
                 if new_remain_tickets < 0:
-                    raise Exception("Number of booked tickets cannot exceed new ticket limit!")
+                    raise TicketLimitExceededError("Number of booked tickets cannot exceed new ticket limit!")
                 update_data.remainingTickets = new_remain_tickets
             else:
                 update_data.remainingTickets = update_data.ticketLimit
@@ -142,8 +151,8 @@ class EventService:
         self.repo.delete(db_event)
 
         if event_id.startswith("event_"):
-            id = int(event_id.replace("event_", ""))
-            release_id = EventID(id=id, isOccupied=False)
+            released_event_number = int(event_id.replace("event_", ""))
+            release_id = EventID(id=released_event_number, isOccupied=False)
             self.repo.update_event_id(release_id)
 
         return "deleted"

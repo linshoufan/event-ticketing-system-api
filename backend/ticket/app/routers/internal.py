@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
@@ -11,18 +13,23 @@ from app.schemas.ticket import TicketCreateInternal
 
 router = APIRouter(prefix="/internal/tickets", dependencies=[Depends(verify_internal_key)])
 
+
 def get_ticket_service(
-    db: Session = Depends(get_db), 
-    event_client: EventClient = Depends(get_event_client),
-    account_client: AccountClient = Depends(get_account_client)
+    db: Annotated[Session, Depends(get_db)],
+    event_client: Annotated[EventClient, Depends(get_event_client)],
+    account_client: Annotated[AccountClient, Depends(get_account_client)],
 ) -> TicketService:
     repo = TicketRepository(db)
     return TicketService(repo, event_client, account_client)
 
+
+TicketServiceDep = Annotated[TicketService, Depends(get_ticket_service)]
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 def issue_ticket(
     data: TicketCreateInternal,
-    service: TicketService = Depends(get_ticket_service)
+    service: TicketServiceDep,
 ):
     ticket = service.create_ticket(data.userId, data.eventId, data.transactionId)
     return success(ticket.to_dict())
@@ -30,7 +37,7 @@ def issue_ticket(
 @router.delete("/{ticket_id}")
 def void_ticket(
     ticket_id: str,
-    service: TicketService = Depends(get_ticket_service)
+    service: TicketServiceDep,
 ):
     service.void_ticket(ticket_id)
     return success({"ticketId": ticket_id, "voided": True})
@@ -38,15 +45,16 @@ def void_ticket(
 @router.delete("/events/{event_id}")
 def delete_event_tickets(
     event_id: str,
-    service: TicketService = Depends(get_ticket_service)
+    service: TicketServiceDep,
 ):
     deleted_count = service.delete_event_tickets(event_id)
     return success({"eventId": event_id, "deletedCount": deleted_count})
 
+
 @router.get("/no-show")
 def get_no_show_tickets(
-    eventId: str = Query(..., alias="eventId"),
-    service: TicketService = Depends(get_ticket_service)
+    event_id: Annotated[str, Query(alias="eventId")],
+    service: TicketServiceDep,
 ):
-    ticket_ids = service.get_unused_tickets_for_ended_event(eventId)
-    return success({"eventId": eventId, "ticketIds": ticket_ids})
+    ticket_ids = service.get_unused_tickets_for_ended_event(event_id)
+    return success({"eventId": event_id, "ticketIds": ticket_ids})

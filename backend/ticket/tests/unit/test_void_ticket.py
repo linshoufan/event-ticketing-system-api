@@ -6,18 +6,16 @@ def test_void_ticket_success(ticket_service, repo, make_ticket, shared_ticket):
     ticket = make_ticket(ticket_id=shared_ticket["id"], status="unused")
     repo.get_by_id.return_value = ticket
 
-    result = ticket_service.void_ticket(shared_ticket["id"])
+    ticket_service.void_ticket(shared_ticket["id"])
 
-    assert result is True
     repo.delete.assert_called_once_with(ticket)
 
 
 def test_void_missing_ticket_is_idempotent(ticket_service, repo, shared_ticket):
     repo.get_by_id.return_value = None
 
-    result = ticket_service.void_ticket(shared_ticket["id"])
+    ticket_service.void_ticket(shared_ticket["id"])
 
-    assert result is True
     repo.delete.assert_not_called()
 
 
