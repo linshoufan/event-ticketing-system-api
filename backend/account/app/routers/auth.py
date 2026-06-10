@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -10,7 +12,7 @@ router = APIRouter()
 
 
 @router.post("/auth/login", response_model=dict)
-def login(body: LoginRequest, db: Session = Depends(get_db)):
+def login(body: LoginRequest, db: Annotated[Session, Depends(get_db)]):
     result = auth_service.login(
         employee_id=body.employeeId,
         password=body.password,

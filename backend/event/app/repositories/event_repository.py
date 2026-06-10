@@ -142,7 +142,7 @@ class EventRepository:
 
     def update_event_id(self, event_id: EventID) -> None:
         if event_id is None:
-            raise Exception("Update event id failed: receiving null parameter")
+            raise ValueError("Update event id failed: receiving null parameter")
 
         merge_id = self.db.merge(event_id)
         self.db.commit()
